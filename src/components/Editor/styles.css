@@ -1,0 +1,27 @@
+.editor-content {
+  outline: none;
+  color: #e5e5e7;
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 100%;
+  caret-color: #e5e5e7;
+}
+
+.editor-content:focus {
+  outline: none;
+}
+
+/* Placeholder */
+.tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: rgba(229, 229, 231, 0.3);
+  pointer-events: none;
+  height: 0;
+}
+
+/* Allow text selection inside the editor */
+.tiptap {
+  user-select: text;
+  -webkit-user-select: text;
+}
