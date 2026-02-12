@@ -1,8 +1,14 @@
 @import "tailwindcss";
 
-body {
+html,
+body,
+#root {
+  height: 100%;
   margin: 0;
   padding: 0;
+}
+
+body {
   overflow: hidden;
   font-family:
     -apple-system,
@@ -15,4 +21,28 @@ body {
   background-color: #1c1c1e;
   color: #e5e5e7;
   user-select: none;
+}
+
+/* Prevent text selection on toolbar elements */
+[data-tauri-drag-region] {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Custom scrollbar for dark theme */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
 }

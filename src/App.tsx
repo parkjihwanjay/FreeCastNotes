@@ -1,9 +1,13 @@
+import Toolbar from "./components/Toolbar/Toolbar";
+
 function App() {
   return (
-    <div className="flex h-screen items-center justify-center bg-[#1C1C1E]">
-      <h1 className="text-2xl font-semibold text-[#E5E5E7]">
-        Hello FreeCastNotes
-      </h1>
+    <div className="flex h-screen flex-col bg-[#1C1C1E]">
+      <Toolbar />
+      {/* Editor area — placeholder until TipTap is added */}
+      <div className="flex flex-1 items-center justify-center">
+        <p className="text-sm text-[#E5E5E7]/40">Start writing...</p>
+      </div>
     </div>
   );
 }
