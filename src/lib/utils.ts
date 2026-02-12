@@ -1,11 +1,17 @@
-/** Extract the title (first line of text) from a TipTap JSON content string */
+/** Extract the title (first H1/H2/H3 heading, fallback to first text) from a TipTap JSON content string */
 export function extractTitle(content: string): string {
   if (!content) return "Untitled";
+
   try {
-    const json = JSON.parse(content);
-    const firstNode = json?.content?.[0];
-    const text = firstNode?.content?.[0]?.text;
-    return text?.trim() || "Untitled";
+    const json = JSON.parse(content) as TipTapNode;
+    const headingNode = findFirstHeading(json);
+    if (headingNode) {
+      const headingText = extractText(headingNode).trim();
+      if (headingText) return headingText;
+    }
+
+    const fallbackText = findFirstText(json);
+    return fallbackText?.trim() || "Untitled";
   } catch {
     return "Untitled";
   }
@@ -14,20 +20,56 @@ export function extractTitle(content: string): string {
 /** Count characters from a TipTap JSON content string */
 export function countCharacters(content: string): number {
   if (!content) return 0;
+
   try {
-    const json = JSON.parse(content);
+    const json = JSON.parse(content) as TipTapNode;
     return extractText(json).length;
   } catch {
     return 0;
   }
 }
 
-function extractText(node: Record<string, unknown>): string {
-  if (node.text && typeof node.text === "string") return node.text;
-  if (Array.isArray(node.content)) {
-    return node.content.map((child: Record<string, unknown>) => extractText(child)).join("");
+interface TipTapNode {
+  type?: string;
+  text?: string;
+  attrs?: {
+    level?: number;
+  };
+  content?: TipTapNode[];
+}
+
+function findFirstHeading(node: TipTapNode): TipTapNode | null {
+  const level = Number(node.attrs?.level);
+  if (node.type === "heading" && (level === 1 || level === 2 || level === 3)) {
+    return node;
   }
-  return "";
+
+  if (!Array.isArray(node.content)) return null;
+
+  for (const child of node.content) {
+    const found = findFirstHeading(child);
+    if (found) return found;
+  }
+
+  return null;
+}
+
+function findFirstText(node: TipTapNode): string | null {
+  if (typeof node.text === "string" && node.text.trim()) return node.text;
+  if (!Array.isArray(node.content)) return null;
+
+  for (const child of node.content) {
+    const found = findFirstText(child);
+    if (found) return found;
+  }
+
+  return null;
+}
+
+function extractText(node: TipTapNode): string {
+  const ownText = typeof node.text === "string" ? node.text : "";
+  if (!Array.isArray(node.content)) return ownText;
+  return ownText + node.content.map((child) => extractText(child)).join("");
 }
 
 /** Format a relative time string from an ISO date */

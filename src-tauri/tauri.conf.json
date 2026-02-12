@@ -14,10 +14,10 @@
     "windows": [
       {
         "title": "FreeCastNotes",
-        "width": 400,
+        "width": 650,
         "height": 600,
-        "minWidth": 400,
-        "maxWidth": 400,
+        "minWidth": 650,
+        "maxWidth": 650,
         "minHeight": 200,
         "resizable": true,
         "fullscreen": false,

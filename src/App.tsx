@@ -38,14 +38,6 @@ function App() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const currentNoteIdRef = useRef<string | null>(null);
 
-  // Refs for overlay state (used in Esc handler without re-creating effect)
-  const browseOpenRef = useRef(browseOpen);
-  browseOpenRef.current = browseOpen;
-  const actionPanelOpenRef = useRef(actionPanelOpen);
-  actionPanelOpenRef.current = actionPanelOpen;
-  const findBarOpenRef = useRef(findBarOpen);
-  findBarOpenRef.current = findBarOpen;
-
   // Track current note ID without re-triggering editor effects
   useEffect(() => {
     currentNoteIdRef.current = currentNote?.id ?? null;
@@ -158,6 +150,23 @@ function App() {
     };
   }, []);
 
+  // Keep fixed window width
+  useEffect(() => {
+    const enforceWidth = async () => {
+      try {
+        const appWindow = getCurrentWindow();
+        const currentSize = await appWindow.innerSize();
+        if (currentSize.width !== 650) {
+          await appWindow.setSize(new LogicalSize(650, currentSize.height));
+        }
+      } catch {
+        /* ignore resize errors */
+      }
+    };
+
+    enforceWidth();
+  }, []);
+
   // Auto-resize window to content
   useEffect(() => {
     if (!autoResizeEnabled || !editor) return;
@@ -168,7 +177,9 @@ function App() {
     const doResize = async () => {
       const contentH = prosemirror.scrollHeight;
       const formatBarEl = document.querySelector("[data-format-bar]");
-      const formatH = formatBarEl ? 40 : 0;
+      const formatH = formatBarEl
+        ? formatBarEl.getBoundingClientRect().height
+        : 0;
       const findBarEl = document.querySelector("[data-find-bar]");
       const findBarH = findBarEl
         ? findBarEl.getBoundingClientRect().height
@@ -177,7 +188,7 @@ function App() {
       const maxH = window.screen.availHeight * 0.8;
       const clamped = Math.max(200, Math.min(Math.ceil(total), maxH));
       try {
-        await getCurrentWindow().setSize(new LogicalSize(400, clamped));
+        await getCurrentWindow().setSize(new LogicalSize(650, clamped));
       } catch {
         /* ignore resize errors */
       }
@@ -212,15 +223,14 @@ function App() {
   // Global keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      // Esc — Hide window when no overlay is open
-      if (
-        e.key === "Escape" &&
-        !browseOpenRef.current &&
-        !actionPanelOpenRef.current &&
-        !findBarOpenRef.current
-      ) {
+      // Esc — Hide window
+      if (e.key === "Escape") {
         e.preventDefault();
+        setBrowseOpen(false);
+        setActionPanelOpen(false);
+        setFindBarOpen(false);
         getCurrentWindow().hide();
+        return;
       }
       // ⌘K — Action Panel
       if (e.metaKey && !e.shiftKey && !e.altKey && e.key === "k") {

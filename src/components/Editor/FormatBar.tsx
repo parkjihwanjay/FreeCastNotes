@@ -48,141 +48,143 @@ export default function FormatBar({ editor }: FormatBarProps) {
     editor.isActive(name, attrs);
 
   return (
-    <div data-format-bar className="relative flex h-10 shrink-0 items-center gap-0.5 border-t border-white/8 bg-[#2C2C2E] px-2">
-      {/* Heading dropdown */}
-      <div className="relative">
-        <FormatBtn
-          label="H▾"
-          active={isActive("heading")}
-          onClick={() => setHeadingOpen((o) => !o)}
-          title="Headings"
-        />
-        {headingOpen && (
-          <div className="absolute bottom-full left-0 mb-1 w-28 rounded-md border border-white/10 bg-[#3A3A3C] py-1 shadow-lg">
-            {([1, 2, 3] as const).map((level) => (
-              <button
-                key={level}
-                onClick={() => {
-                  run(() =>
-                    editor.chain().focus().toggleHeading({ level }).run(),
-                  );
-                  setHeadingOpen(false);
-                }}
-                className={`flex w-full items-center px-3 py-1 text-left text-sm hover:bg-white/10 ${
-                  isActive("heading", { level })
-                    ? "text-white"
-                    : "text-white/60"
-                }`}
-              >
-                <span
-                  style={{
-                    fontSize: level === 1 ? 18 : level === 2 ? 15 : 13,
-                    fontWeight: 700,
+    <div data-format-bar className="relative flex h-12 shrink-0 items-center border-t border-white/8 bg-[#2C2C2E] px-2">
+      <div className="mx-auto flex items-center gap-0.5">
+        {/* Heading dropdown */}
+        <div className="relative">
+          <FormatBtn
+            label="H▾"
+            active={isActive("heading")}
+            onClick={() => setHeadingOpen((o) => !o)}
+            title="Headings"
+          />
+          {headingOpen && (
+            <div className="absolute bottom-full left-0 mb-1.5 w-32 rounded-md border border-white/10 bg-[#3A3A3C] py-1 shadow-lg">
+              {([1, 2, 3] as const).map((level) => (
+                <button
+                  key={level}
+                  onClick={() => {
+                    run(() =>
+                      editor.chain().focus().toggleHeading({ level }).run(),
+                    );
+                    setHeadingOpen(false);
                   }}
+                  className={`flex w-full items-center px-3 py-1.5 text-left text-sm hover:bg-white/10 ${
+                    isActive("heading", { level })
+                      ? "text-white"
+                      : "text-white/60"
+                  }`}
                 >
-                  H{level}
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
+                  <span
+                    style={{
+                      fontSize: level === 1 ? 22 : level === 2 ? 18 : 16,
+                      fontWeight: 700,
+                    }}
+                  >
+                    H{level}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <Separator />
+
+        {/* Inline formats */}
+        <FormatBtn
+          label="B"
+          active={isActive("bold")}
+          onClick={() => run(() => editor.chain().focus().toggleBold().run())}
+          title="Bold (⌘B)"
+          bold
+        />
+        <FormatBtn
+          label="I"
+          active={isActive("italic")}
+          onClick={() => run(() => editor.chain().focus().toggleItalic().run())}
+          title="Italic (⌘I)"
+          italic
+        />
+        <FormatBtn
+          label="S"
+          active={isActive("strike")}
+          onClick={() => run(() => editor.chain().focus().toggleStrike().run())}
+          title="Strikethrough (⇧⌘S)"
+          strike
+        />
+        <FormatBtn
+          label="U"
+          active={isActive("underline")}
+          onClick={() =>
+            run(() => editor.chain().focus().toggleUnderline().run())
+          }
+          title="Underline (⌘U)"
+          underline
+        />
+        <FormatBtn
+          label="<>"
+          active={isActive("code")}
+          onClick={() => run(() => editor.chain().focus().toggleCode().run())}
+          title="Inline Code (⌘E)"
+        />
+        <FormatBtn
+          label="🔗"
+          active={isActive("link")}
+          onClick={() => {
+            if (isActive("link")) {
+              run(() => editor.chain().focus().unsetLink().run());
+            } else {
+              const url = window.prompt("URL:");
+              if (url) {
+                run(() =>
+                  editor.chain().focus().setLink({ href: url }).run(),
+                );
+              }
+            }
+          }}
+          title="Link (⌘L)"
+        />
+
+        <Separator />
+
+        {/* Block formats */}
+        <FormatBtn
+          label="❝"
+          active={isActive("blockquote")}
+          onClick={() =>
+            run(() => editor.chain().focus().toggleBlockquote().run())
+          }
+          title="Blockquote (⇧⌘B)"
+        />
+        <FormatBtn
+          label="•"
+          active={isActive("bulletList")}
+          onClick={() =>
+            run(() => editor.chain().focus().toggleBulletList().run())
+          }
+          title="Bullet List (⇧⌘8)"
+        />
+        <FormatBtn
+          label="1."
+          active={isActive("orderedList")}
+          onClick={() =>
+            run(() => editor.chain().focus().toggleOrderedList().run())
+          }
+          title="Ordered List (⇧⌘7)"
+        />
+        <FormatBtn
+          label="☐"
+          active={isActive("taskList")}
+          onClick={() =>
+            run(() => editor.chain().focus().toggleTaskList().run())
+          }
+          title="Task List (⇧⌘9)"
+        />
       </div>
 
-      <Separator />
-
-      {/* Inline formats */}
-      <FormatBtn
-        label="B"
-        active={isActive("bold")}
-        onClick={() => run(() => editor.chain().focus().toggleBold().run())}
-        title="Bold (⌘B)"
-        bold
-      />
-      <FormatBtn
-        label="I"
-        active={isActive("italic")}
-        onClick={() => run(() => editor.chain().focus().toggleItalic().run())}
-        title="Italic (⌘I)"
-        italic
-      />
-      <FormatBtn
-        label="S"
-        active={isActive("strike")}
-        onClick={() => run(() => editor.chain().focus().toggleStrike().run())}
-        title="Strikethrough (⇧⌘S)"
-        strike
-      />
-      <FormatBtn
-        label="U"
-        active={isActive("underline")}
-        onClick={() =>
-          run(() => editor.chain().focus().toggleUnderline().run())
-        }
-        title="Underline (⌘U)"
-        underline
-      />
-      <FormatBtn
-        label="<>"
-        active={isActive("code")}
-        onClick={() => run(() => editor.chain().focus().toggleCode().run())}
-        title="Inline Code (⌘E)"
-      />
-      <FormatBtn
-        label="🔗"
-        active={isActive("link")}
-        onClick={() => {
-          if (isActive("link")) {
-            run(() => editor.chain().focus().unsetLink().run());
-          } else {
-            const url = window.prompt("URL:");
-            if (url) {
-              run(() =>
-                editor.chain().focus().setLink({ href: url }).run(),
-              );
-            }
-          }
-        }}
-        title="Link (⌘L)"
-      />
-
-      <Separator />
-
-      {/* Block formats */}
-      <FormatBtn
-        label="❝"
-        active={isActive("blockquote")}
-        onClick={() =>
-          run(() => editor.chain().focus().toggleBlockquote().run())
-        }
-        title="Blockquote (⇧⌘B)"
-      />
-      <FormatBtn
-        label="•"
-        active={isActive("bulletList")}
-        onClick={() =>
-          run(() => editor.chain().focus().toggleBulletList().run())
-        }
-        title="Bullet List (⇧⌘8)"
-      />
-      <FormatBtn
-        label="1."
-        active={isActive("orderedList")}
-        onClick={() =>
-          run(() => editor.chain().focus().toggleOrderedList().run())
-        }
-        title="Ordered List (⇧⌘7)"
-      />
-      <FormatBtn
-        label="☐"
-        active={isActive("taskList")}
-        onClick={() =>
-          run(() => editor.chain().focus().toggleTaskList().run())
-        }
-        title="Task List (⇧⌘9)"
-      />
-
       {/* Close button */}
-      <div className="ml-auto">
+      <div className="absolute right-1 top-1/2 -translate-y-1/2">
         <FormatBtn
           label="✕"
           active={false}
@@ -217,7 +219,7 @@ function FormatBtn({
     <button
       onClick={onClick}
       title={title}
-      className={`flex h-7 min-w-7 items-center justify-center rounded px-1.5 text-xs transition-colors ${
+      className={`flex h-[34px] min-w-[34px] items-center justify-center rounded-md px-2 text-[14px] leading-none transition-colors ${
         active
           ? "bg-white/15 text-white"
           : "text-white/50 hover:bg-white/8 hover:text-white/80"
@@ -239,5 +241,5 @@ function FormatBtn({
 }
 
 function Separator() {
-  return <div className="mx-1 h-4 w-px bg-white/10" />;
+  return <div className="mx-1 h-5 w-px bg-white/10" />;
 }
