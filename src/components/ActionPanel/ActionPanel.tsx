@@ -45,7 +45,7 @@ export default function ActionPanel({
       setSearch("");
       setSelectedIndex(0);
       setSubmenu(null);
-      setTimeout(() => inputRef.current?.focus(), 50);
+      setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 50);
     }
   }, [open]);
 
@@ -115,7 +115,7 @@ export default function ActionPanel({
 
   return (
     <div
-      className="animate-overlay-in absolute inset-0 z-50 flex items-start justify-center pt-16"
+      className="animate-overlay-in fixed inset-0 z-50 flex items-start justify-center pt-16"
       onClick={onClose}
     >
       <div

@@ -51,17 +51,34 @@ export const useAppStore = create<AppState>((set, get) => ({
   historyIndex: -1,
 
   loadNotes: async () => {
-    const notes = await db.listNotes();
-    set({ notes, loading: false });
+    try {
+      const notes = await db.listNotes();
+      set({ notes, loading: false });
+    } catch (error) {
+      console.error("Failed to load notes", error);
+      set({ notes: [], loading: false });
+      get().showToast("Could not load notes");
+    }
   },
 
   createNote: async () => {
-    const note = await db.createNote();
-    const notes = await db.listNotes();
-    const { history, historyIndex } = get();
-    const newHistory = [...history.slice(0, historyIndex + 1), note.id];
-    set({ notes, currentNote: note, history: newHistory, historyIndex: newHistory.length - 1 });
-    return note;
+    try {
+      const note = await db.createNote();
+      const notes = await db.listNotes();
+      const { history, historyIndex } = get();
+      const newHistory = [...history.slice(0, historyIndex + 1), note.id];
+      set({
+        notes: notes.length > 0 ? notes : [note],
+        currentNote: note,
+        history: newHistory,
+        historyIndex: newHistory.length - 1,
+      });
+      return note;
+    } catch (error) {
+      console.error("Failed to create note", error);
+      get().showToast("Could not create note");
+      throw error;
+    }
   },
 
   switchToNote: async (id: string) => {
@@ -81,50 +98,81 @@ export const useAppStore = create<AppState>((set, get) => ({
   updateCurrentNoteContent: async (content: string) => {
     const { currentNote } = get();
     if (!currentNote) return;
-    await db.updateNote(currentNote.id, content);
-    const updatedNote = { ...currentNote, content, updated_at: new Date().toISOString() };
-    set((state) => ({
-      currentNote: updatedNote,
-      notes: state.notes.map((n) => (n.id === updatedNote.id ? updatedNote : n)),
-    }));
+    try {
+      await db.updateNote(currentNote.id, content);
+      const updatedNote = {
+        ...currentNote,
+        content,
+        updated_at: new Date().toISOString(),
+      };
+      set((state) => ({
+        currentNote: updatedNote,
+        notes: state.notes.map((n) =>
+          n.id === updatedNote.id ? updatedNote : n,
+        ),
+      }));
+    } catch (error) {
+      console.error("Failed to update note", error);
+    }
   },
 
   deleteNote: async (id: string) => {
-    await db.deleteNote(id);
-    const notes = await db.listNotes();
-    const { currentNote } = get();
-    if (currentNote?.id === id) {
-      if (notes.length > 0) {
-        set({ notes, currentNote: notes[0] });
+    try {
+      await db.deleteNote(id);
+      const notes = await db.listNotes();
+      const { currentNote } = get();
+      if (currentNote?.id === id) {
+        if (notes.length > 0) {
+          set({ notes, currentNote: notes[0] });
+        } else {
+          const newNote = await db.createNote();
+          const refreshed = await db.listNotes();
+          set({ notes: refreshed, currentNote: newNote });
+        }
       } else {
-        const newNote = await db.createNote();
-        const refreshed = await db.listNotes();
-        set({ notes: refreshed, currentNote: newNote });
+        set({ notes });
       }
-    } else {
-      set({ notes });
+    } catch (error) {
+      console.error("Failed to delete note", error);
+      get().showToast("Could not delete note");
     }
   },
 
   togglePin: async (id: string) => {
-    const updated = await db.togglePin(id);
-    if (!updated) return;
-    const notes = await db.listNotes();
-    const { currentNote } = get();
-    set({
-      notes,
-      currentNote: currentNote?.id === id ? updated : currentNote,
-    });
+    try {
+      const updated = await db.togglePin(id);
+      if (!updated) return;
+      const notes = await db.listNotes();
+      const { currentNote } = get();
+      set({
+        notes,
+        currentNote: currentNote?.id === id ? updated : currentNote,
+      });
+    } catch (error) {
+      console.error("Failed to pin/unpin note", error);
+      get().showToast("Could not update pin");
+    }
   },
 
   duplicateNote: async (id: string) => {
-    const dup = await db.duplicateNote(id);
-    if (!dup) return null;
-    const notes = await db.listNotes();
-    const { history, historyIndex } = get();
-    const newHistory = [...history.slice(0, historyIndex + 1), dup.id];
-    set({ notes, currentNote: dup, history: newHistory, historyIndex: newHistory.length - 1 });
-    return dup;
+    try {
+      const dup = await db.duplicateNote(id);
+      if (!dup) return null;
+      const notes = await db.listNotes();
+      const { history, historyIndex } = get();
+      const newHistory = [...history.slice(0, historyIndex + 1), dup.id];
+      set({
+        notes,
+        currentNote: dup,
+        history: newHistory,
+        historyIndex: newHistory.length - 1,
+      });
+      return dup;
+    } catch (error) {
+      console.error("Failed to duplicate note", error);
+      get().showToast("Could not duplicate note");
+      return null;
+    }
   },
 
   // Navigation

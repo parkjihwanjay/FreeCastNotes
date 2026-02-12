@@ -19,6 +19,7 @@ function App() {
   const [browseOpen, setBrowseOpen] = useState(false);
   const [actionPanelOpen, setActionPanelOpen] = useState(false);
   const [findBarOpen, setFindBarOpen] = useState(false);
+  const [title, setTitle] = useState("Untitled");
   const {
     currentNote,
     loading,
@@ -58,7 +59,9 @@ function App() {
     if (notes.length > 0) {
       switchToNote(notes[0].id);
     } else {
-      createNote();
+      createNote().catch((error) => {
+        console.error("Failed to create initial note", error);
+      });
     }
   }, [loading, notes, switchToNote, createNote]);
 
@@ -82,6 +85,24 @@ function App() {
     }
   }, [editor, currentNote?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Keep title in sync with saved/current note content
+  useEffect(() => {
+    setTitle(extractTitle(currentNote?.content ?? ""));
+  }, [currentNote?.content]);
+
+  // Update title live from editor content (before debounce save completes)
+  useEffect(() => {
+    if (!editor) return;
+    const syncTitle = () => {
+      setTitle(extractTitle(JSON.stringify(editor.getJSON())));
+    };
+    syncTitle();
+    editor.on("update", syncTitle);
+    return () => {
+      editor.off("update", syncTitle);
+    };
+  }, [editor]);
+
   // Auto-save on editor changes with 300ms debounce
   const handleUpdate = useCallback(() => {
     if (!editor || !currentNoteIdRef.current) return;
@@ -100,18 +121,42 @@ function App() {
     };
   }, [editor, handleUpdate]);
 
+  const createNoteAndFocus = useCallback(
+    async (closePanels: boolean) => {
+      try {
+        await createNote();
+        if (closePanels) {
+          setBrowseOpen(false);
+          setActionPanelOpen(false);
+        }
+        editor?.commands.focus();
+      } catch (error) {
+        console.error("Failed to create note", error);
+      }
+    },
+    [createNote, editor],
+  );
+
+  const openBrowse = useCallback(() => {
+    setActionPanelOpen(false);
+    setBrowseOpen(true);
+    loadNotes().catch((error) => {
+      console.error("Failed to refresh notes before opening browser", error);
+    });
+  }, [loadNotes]);
+
   // Listen for tray "New Note" event
   useEffect(() => {
     let unlistenFn: (() => void) | null = null;
     listen("tray-new-note", () => {
-      createNote().then(() => editor?.commands.focus());
+      createNoteAndFocus(true);
     }).then((fn) => {
       unlistenFn = fn;
     });
     return () => {
       unlistenFn?.();
     };
-  }, [createNote, editor]);
+  }, [createNoteAndFocus]);
 
   // Window position persistence
   useEffect(() => {
@@ -150,26 +195,31 @@ function App() {
     };
   }, []);
 
-  // Keep fixed window width
+  // Keep fixed window width and sane height on startup
   useEffect(() => {
-    const enforceWidth = async () => {
+    const enforceWindowSize = async () => {
       try {
         const appWindow = getCurrentWindow();
         const currentSize = await appWindow.innerSize();
-        if (currentSize.width !== 650) {
-          await appWindow.setSize(new LogicalSize(650, currentSize.height));
+        const maxH = Math.max(200, Math.floor(window.screen.availHeight * 0.8));
+        const nextHeight = Math.max(
+          200,
+          Math.min(currentSize.height, maxH),
+        );
+        if (currentSize.width !== 650 || currentSize.height !== nextHeight) {
+          await appWindow.setSize(new LogicalSize(650, nextHeight));
         }
       } catch {
         /* ignore resize errors */
       }
     };
 
-    enforceWidth();
+    enforceWindowSize();
   }, []);
 
   // Auto-resize window to content
   useEffect(() => {
-    if (!autoResizeEnabled || !editor) return;
+    if (!autoResizeEnabled || !editor || actionPanelOpen || browseOpen) return;
 
     const prosemirror = document.querySelector(".ProseMirror");
     if (!prosemirror) return;
@@ -218,136 +268,147 @@ function App() {
       mutObs.disconnect();
       clearTimeout(timer);
     };
-  }, [autoResizeEnabled, editor]);
+  }, [autoResizeEnabled, editor, actionPanelOpen, browseOpen]);
 
   // Global keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      // Esc — Hide window
-      if (e.key === "Escape") {
-        e.preventDefault();
-        setBrowseOpen(false);
-        setActionPanelOpen(false);
-        setFindBarOpen(false);
-        getCurrentWindow().hide();
-        return;
-      }
-      // ⌘K — Action Panel
-      if (e.metaKey && !e.shiftKey && !e.altKey && e.key === "k") {
-        e.preventDefault();
-        setActionPanelOpen((o) => !o);
-        setBrowseOpen(false);
-      }
-      // ⌘P — Browse Notes
-      if (e.metaKey && !e.shiftKey && !e.altKey && e.key === "p") {
-        e.preventDefault();
-        setBrowseOpen((o) => !o);
-        setActionPanelOpen(false);
-      }
-      // ⌘F — Find in Note
-      if (e.metaKey && !e.shiftKey && !e.altKey && e.key === "f") {
-        e.preventDefault();
-        setFindBarOpen(true);
-        // Focus handled by FindBar component
-      }
-      // ⌘N — New Note
-      if (e.metaKey && !e.shiftKey && !e.altKey && e.key === "n") {
-        e.preventDefault();
-        createNote().then(() => {
+      try {
+        const key = (e.key ?? "").toLowerCase();
+        const mod = e.metaKey || e.ctrlKey;
+
+        // Esc — Hide window
+        if (key === "escape") {
+          e.preventDefault();
           setBrowseOpen(false);
           setActionPanelOpen(false);
-          editor?.commands.focus();
-        });
-      }
-      // ⌘D — Duplicate Note
-      if (e.metaKey && !e.shiftKey && !e.altKey && e.key === "d") {
-        e.preventDefault();
-        const note = useAppStore.getState().currentNote;
-        if (note) {
-          useAppStore.getState().duplicateNote(note.id).then(() => {
-            showToast("Note duplicated");
-            editor?.commands.focus();
-          });
+          setFindBarOpen(false);
+          getCurrentWindow().hide();
+          return;
         }
-      }
-      // ⌘[ — Navigate Back
-      if (e.metaKey && !e.shiftKey && !e.altKey && e.key === "[") {
-        e.preventDefault();
-        goBack();
-      }
-      // ⌘] — Navigate Forward
-      if (e.metaKey && !e.shiftKey && !e.altKey && e.key === "]") {
-        e.preventDefault();
-        goForward();
-      }
-      // ⇧⌘P — Toggle Pin
-      if (
-        e.metaKey &&
-        e.shiftKey &&
-        !e.altKey &&
-        (e.key === "p" || e.key === "P")
-      ) {
-        e.preventDefault();
-        const note = useAppStore.getState().currentNote;
-        if (note) {
-          togglePin(note.id).then(() => {
-            showToast(note.is_pinned ? "Note unpinned" : "Note pinned");
-          });
-        }
-      }
-      // ⇧⌘C — Copy as Markdown
-      if (
-        e.metaKey &&
-        e.shiftKey &&
-        !e.altKey &&
-        (e.key === "c" || e.key === "C")
-      ) {
-        e.preventDefault();
-        if (editor) {
-          copyAsMarkdown(editor).then(() => showToast("Copied as Markdown"));
-        }
-      }
-      // ⇧⌘E — Export (open action panel)
-      if (
-        e.metaKey &&
-        e.shiftKey &&
-        !e.altKey &&
-        (e.key === "e" || e.key === "E")
-      ) {
-        e.preventDefault();
-        setActionPanelOpen(true);
-      }
-      // ⇧⌘/ — Toggle auto-resize
-      if (e.metaKey && e.shiftKey && !e.altKey && e.key === "/") {
-        e.preventDefault();
-        const wasEnabled = useAppStore.getState().autoResizeEnabled;
-        toggleAutoResize();
-        showToast(
-          wasEnabled ? "Auto-sizing disabled" : "Auto-sizing enabled",
-        );
-      }
-      // ⌘0-⌘9 — Quick access to pinned notes
-      if (
-        e.metaKey &&
-        !e.shiftKey &&
-        !e.altKey &&
-        e.key >= "0" &&
-        e.key <= "9"
-      ) {
-        const pinnedNotes = useAppStore
-          .getState()
-          .notes.filter((n) => n.is_pinned);
-        const idx = e.key === "0" ? 9 : parseInt(e.key) - 1;
-        if (idx < pinnedNotes.length) {
+        // ⌘K — Action Panel
+        if (mod && !e.shiftKey && !e.altKey && (key === "k" || e.code === "KeyK")) {
           e.preventDefault();
-          switchToNote(pinnedNotes[idx].id);
+          setActionPanelOpen((o) => !o);
+          setBrowseOpen(false);
         }
+        // ⌘P — Browse Notes
+        if (mod && !e.shiftKey && !e.altKey && (key === "p" || e.code === "KeyP")) {
+          e.preventDefault();
+          setBrowseOpen((isOpen) => {
+            const next = !isOpen;
+            if (next) {
+              loadNotes().catch((error) => {
+                console.error("Failed to refresh notes from shortcut", error);
+              });
+            }
+            return next;
+          });
+          setActionPanelOpen(false);
+        }
+        // ⌘F — Find in Note
+        if (mod && !e.shiftKey && !e.altKey && (key === "f" || e.code === "KeyF")) {
+          e.preventDefault();
+          setFindBarOpen(true);
+          // Focus handled by FindBar component
+        }
+        // ⌘N — New Note
+        if (mod && !e.shiftKey && !e.altKey && (key === "n" || e.code === "KeyN")) {
+          e.preventDefault();
+          createNoteAndFocus(true);
+        }
+        // ⌘D — Duplicate Note
+        if (mod && !e.shiftKey && !e.altKey && (key === "d" || e.code === "KeyD")) {
+          e.preventDefault();
+          const note = useAppStore.getState().currentNote;
+          if (note) {
+            useAppStore.getState().duplicateNote(note.id).then(() => {
+              showToast("Note duplicated");
+              editor?.commands.focus();
+            });
+          }
+        }
+        // ⌘[ — Navigate Back
+        if (mod && !e.shiftKey && !e.altKey && (key === "[" || e.code === "BracketLeft")) {
+          e.preventDefault();
+          goBack();
+        }
+        // ⌘] — Navigate Forward
+        if (mod && !e.shiftKey && !e.altKey && (key === "]" || e.code === "BracketRight")) {
+          e.preventDefault();
+          goForward();
+        }
+        // ⇧⌘P — Toggle Pin
+        if (
+          mod &&
+          e.shiftKey &&
+          !e.altKey &&
+          (key === "p" || e.code === "KeyP")
+        ) {
+          e.preventDefault();
+          const note = useAppStore.getState().currentNote;
+          if (note) {
+            togglePin(note.id).then(() => {
+              showToast(note.is_pinned ? "Note unpinned" : "Note pinned");
+            });
+          }
+        }
+        // ⇧⌘C — Copy as Markdown
+        if (
+          mod &&
+          e.shiftKey &&
+          !e.altKey &&
+          (key === "c" || e.code === "KeyC")
+        ) {
+          e.preventDefault();
+          if (editor) {
+            copyAsMarkdown(editor).then(() => showToast("Copied as Markdown"));
+          }
+        }
+        // ⇧⌘E — Export (open action panel)
+        if (
+          mod &&
+          e.shiftKey &&
+          !e.altKey &&
+          (key === "e" || e.code === "KeyE")
+        ) {
+          e.preventDefault();
+          setActionPanelOpen(true);
+        }
+        // ⇧⌘/ — Toggle auto-resize
+        if (mod && e.shiftKey && !e.altKey && (key === "/" || e.code === "Slash")) {
+          e.preventDefault();
+          const wasEnabled = useAppStore.getState().autoResizeEnabled;
+          toggleAutoResize();
+          showToast(
+            wasEnabled ? "Auto-sizing disabled" : "Auto-sizing enabled",
+          );
+        }
+        // ⌘0-⌘9 — Quick access to pinned notes
+        if (
+          mod &&
+          !e.shiftKey &&
+          !e.altKey &&
+          e.key >= "0" &&
+          e.key <= "9"
+        ) {
+          const pinnedNotes = useAppStore
+            .getState()
+            .notes.filter((n) => n.is_pinned);
+          const idx = e.key === "0" ? 9 : parseInt(e.key) - 1;
+          if (idx < pinnedNotes.length) {
+            e.preventDefault();
+            switchToNote(pinnedNotes[idx].id);
+          }
+        }
+      } catch (error) {
+        console.error("Shortcut handler error", error);
       }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener("keydown", handler, true);
+    return () => window.removeEventListener("keydown", handler, true);
   }, [
-    createNote,
+    createNoteAndFocus,
     editor,
     goBack,
     goForward,
@@ -355,25 +416,24 @@ function App() {
     showToast,
     switchToNote,
     toggleAutoResize,
+    loadNotes,
   ]);
-
-  const title = extractTitle(currentNote?.content ?? "");
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-[#1C1C1E]">
+      <div className="flex h-screen items-center justify-center bg-[#1F1F1F]">
         <p className="text-sm text-[#E5E5E7]/40">Loading...</p>
       </div>
     );
   }
 
   return (
-    <div className="relative flex h-screen flex-col bg-[#1C1C1E]">
+    <div className="relative flex h-screen flex-col bg-[#1F1F1F]">
       <Toolbar
         title={title}
-        onBrowse={() => setBrowseOpen(true)}
+        onBrowse={openBrowse}
         onNewNote={() => {
-          createNote().then(() => editor?.commands.focus());
+          createNoteAndFocus(true);
         }}
         onActionPanel={() => setActionPanelOpen(true)}
       />
@@ -391,9 +451,9 @@ function App() {
         onClose={() => setActionPanelOpen(false)}
         editor={editor}
         onNewNote={() => {
-          createNote().then(() => editor?.commands.focus());
+          createNoteAndFocus(true);
         }}
-        onBrowseNotes={() => setBrowseOpen(true)}
+        onBrowseNotes={openBrowse}
       />
       <Toast />
     </div>

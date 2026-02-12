@@ -18,19 +18,26 @@ export default function NotesBrowser({ open, onClose }: NotesBrowserProps) {
   useEffect(() => {
     if (open) {
       setSearch("");
-      setTimeout(() => inputRef.current?.focus(), 50);
+      setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 50);
     }
   }, [open]);
+
+  const visibleNotes = useMemo(
+    () => (notes.length === 0 && currentNote ? [currentNote] : notes),
+    [notes, currentNote],
+  );
 
   // Keyboard handling
   useEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => {
+      const key = e.key.toLowerCase();
+      const mod = e.metaKey || e.ctrlKey;
       if (e.key === "Escape") {
         e.preventDefault();
         onClose();
       }
-      if (e.metaKey && e.key === "n") {
+      if (mod && (key === "n" || e.code === "KeyN")) {
         e.preventDefault();
         createNote().then(() => onClose());
       }
@@ -40,19 +47,19 @@ export default function NotesBrowser({ open, onClose }: NotesBrowserProps) {
   }, [open, onClose, createNote]);
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return notes;
+    if (!search.trim()) return visibleNotes;
     const q = search.toLowerCase();
-    return notes.filter((n) => {
+    return visibleNotes.filter((n) => {
       const title = extractTitle(n.content).toLowerCase();
       const content = n.content.toLowerCase();
       return title.includes(q) || content.includes(q);
     });
-  }, [notes, search]);
+  }, [visibleNotes, search]);
 
   if (!open) return null;
 
   return (
-    <div className="animate-overlay-in absolute inset-0 z-50 flex flex-col bg-[#1C1C1E]/95 backdrop-blur-sm">
+    <div className="animate-overlay-in absolute inset-0 z-50 flex flex-col bg-[#1F1F1F]/95 backdrop-blur-sm">
       {/* Header */}
       <div className="flex shrink-0 flex-col gap-2 border-b border-white/8 px-4 pb-3 pt-14">
         {/* Search */}
@@ -67,7 +74,7 @@ export default function NotesBrowser({ open, onClose }: NotesBrowserProps) {
         {/* Count */}
         <div className="flex items-center justify-between">
           <span className="text-xs text-[#E5E5E7]/40">
-            {filtered.length}/{notes.length} Notes
+            {filtered.length}/{visibleNotes.length} Notes
           </span>
         </div>
       </div>
