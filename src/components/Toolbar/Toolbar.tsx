@@ -100,7 +100,7 @@ function ToolbarButton({
     <button
       onClick={onClick}
       title={title}
-      className="flex h-7 items-center rounded-md px-2 text-xs text-[#E5E5E7]/60 transition-colors hover:bg-white/10 hover:text-[#E5E5E7]"
+      className="flex h-[34px] items-center rounded-md px-2.5 text-[14px] text-[#E5E5E7]/65 transition-colors hover:bg-white/10 hover:text-[#E5E5E7]"
     >
       {label}
     </button>

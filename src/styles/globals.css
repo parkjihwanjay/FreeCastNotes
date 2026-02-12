@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+:root {
+  --accent-color: #ff5f5a;
+  --accent-color-strong: #ff4f4a;
+  --accent-color-soft: rgba(255, 95, 90, 0.28);
+  --accent-color-faint: rgba(255, 95, 90, 0.16);
+}
+
 html,
 body,
 #root {
@@ -27,7 +34,7 @@ body {
   overflow: hidden;
   border-radius: 18px;
   border: 1px solid rgba(255, 255, 255, 0.14);
-  background-color: #1f1f1f;
+  background-color: #232323;
 }
 
 /* Prevent text selection on toolbar elements */
@@ -56,13 +63,13 @@ body {
 
 /* ── Text selection ── */
 ::selection {
-  background: rgba(100, 130, 255, 0.35);
+  background: var(--accent-color-soft);
 }
 
 /* ── Focus ring (subtle) ── */
 input:focus-visible,
 button:focus-visible {
-  outline: 1px solid rgba(100, 130, 255, 0.5);
+  outline: 1px solid rgba(255, 95, 90, 0.5);
   outline-offset: 1px;
   border-radius: 4px;
 }

@@ -53,9 +53,9 @@
 
 /* ── Code Block ── */
 .tiptap pre {
-  background: #0d0d0d;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.11);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
   padding: 12px 16px;
   margin: 0.5em 0;
   overflow-x: auto;
@@ -74,15 +74,15 @@
 .tiptap code {
   font-family: "SF Mono", "Fira Code", monospace;
   font-size: 12.5px;
-  background: rgba(255, 255, 255, 0.08);
-  color: #ff6b6b;
+  background: var(--accent-color-faint);
+  color: var(--accent-color);
   padding: 2px 5px;
   border-radius: 4px;
 }
 
 /* ── Blockquote ── */
 .tiptap blockquote {
-  border-left: 3px solid rgba(255, 255, 255, 0.2);
+  border-left: 3px solid var(--accent-color);
   padding-left: 14px;
   margin: 0.5em 0;
   color: rgba(229, 229, 231, 0.7);
@@ -117,6 +117,11 @@
 }
 .tiptap ul:not([data-type="taskList"]) ul ul ul {
   list-style-type: "◆ ";
+}
+
+.tiptap ul:not([data-type="taskList"]) li::marker,
+.tiptap ol li::marker {
+  color: var(--accent-color);
 }
 
 /* ── Ordered List ── */
@@ -160,8 +165,8 @@
   -webkit-appearance: none;
   width: 16px;
   height: 16px;
-  border: 2px solid #ff6363;
-  border-radius: 50%;
+  border: 2px solid var(--accent-color);
+  border-radius: 4px;
   background: transparent;
   cursor: pointer;
   position: relative;
@@ -169,8 +174,8 @@
 }
 
 .tiptap ul[data-type="taskList"] li > label input[type="checkbox"]:checked {
-  background: #ff6363;
-  border-color: #ff6363;
+  background: var(--accent-color);
+  border-color: var(--accent-color);
 }
 
 .tiptap ul[data-type="taskList"] li > label input[type="checkbox"]:checked::after {
@@ -204,7 +209,7 @@
 /* ── Links ── */
 .tiptap a,
 .tiptap .editor-link {
-  color: #64b5f6;
+  color: var(--accent-color);
   text-decoration: underline;
   text-underline-offset: 2px;
   cursor: pointer;

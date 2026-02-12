@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { PhysicalPosition, LogicalSize } from "@tauri-apps/api/dpi";
 import { listen } from "@tauri-apps/api/event";
+import { invoke } from "@tauri-apps/api/core";
 import Toolbar from "./components/Toolbar/Toolbar";
 import Editor from "./components/Editor/Editor";
 import FormatBar from "./components/Editor/FormatBar";
@@ -9,6 +10,7 @@ import NotesBrowser from "./components/NotesBrowser/NotesBrowser";
 import ActionPanel from "./components/ActionPanel/ActionPanel";
 import Toast from "./components/Toast/Toast";
 import FindBar from "./components/Editor/FindBar";
+import ShortcutSettings from "./components/ShortcutSettings/ShortcutSettings";
 import { useAppEditor } from "./hooks/useEditor";
 import { useAppStore } from "./stores/appStore";
 import { extractTitle } from "./lib/utils";
@@ -19,6 +21,8 @@ function App() {
   const [browseOpen, setBrowseOpen] = useState(false);
   const [actionPanelOpen, setActionPanelOpen] = useState(false);
   const [findBarOpen, setFindBarOpen] = useState(false);
+  const [shortcutSettingsOpen, setShortcutSettingsOpen] = useState(false);
+  const [globalShortcut, setGlobalShortcut] = useState("Alt+N");
   const [title, setTitle] = useState("Untitled");
   const {
     currentNote,
@@ -145,6 +149,26 @@ function App() {
     });
   }, [loadNotes]);
 
+  const saveGlobalShortcut = useCallback(
+    async (shortcut: string) => {
+      await invoke("set_global_shortcut", { shortcut });
+      setGlobalShortcut(shortcut);
+      showToast(`Global shortcut set: ${shortcut}`);
+    },
+    [showToast],
+  );
+
+  // Load global shortcut from backend
+  useEffect(() => {
+    invoke<string>("get_global_shortcut")
+      .then((shortcut) => {
+        if (shortcut) setGlobalShortcut(shortcut);
+      })
+      .catch((error) => {
+        console.error("Failed to load global shortcut", error);
+      });
+  }, []);
+
   // Listen for tray "New Note" event
   useEffect(() => {
     let unlistenFn: (() => void) | null = null;
@@ -157,6 +181,21 @@ function App() {
       unlistenFn?.();
     };
   }, [createNoteAndFocus]);
+
+  // Listen for tray "Set Global Shortcut" event
+  useEffect(() => {
+    let unlistenFn: (() => void) | null = null;
+    listen("tray-open-shortcut-settings", () => {
+      setBrowseOpen(false);
+      setActionPanelOpen(false);
+      setShortcutSettingsOpen(true);
+    }).then((fn) => {
+      unlistenFn = fn;
+    });
+    return () => {
+      unlistenFn?.();
+    };
+  }, []);
 
   // Window position persistence
   useEffect(() => {
@@ -277,6 +316,14 @@ function App() {
         const key = (e.key ?? "").toLowerCase();
         const mod = e.metaKey || e.ctrlKey;
 
+        if (shortcutSettingsOpen) {
+          if (key === "escape") {
+            e.preventDefault();
+            setShortcutSettingsOpen(false);
+          }
+          return;
+        }
+
         // Esc — Hide window
         if (key === "escape") {
           e.preventDefault();
@@ -311,6 +358,20 @@ function App() {
           e.preventDefault();
           setFindBarOpen(true);
           // Focus handled by FindBar component
+        }
+        // ⌘L — Toggle Link
+        if (mod && !e.shiftKey && !e.altKey && (key === "l" || e.code === "KeyL")) {
+          e.preventDefault();
+          if (editor) {
+            if (editor.isActive("link")) {
+              editor.chain().focus().unsetLink().run();
+            } else {
+              const url = window.prompt("URL:");
+              if (url) {
+                editor.chain().focus().setLink({ href: url }).run();
+              }
+            }
+          }
         }
         // ⌘N — New Note
         if (mod && !e.shiftKey && !e.altKey && (key === "n" || e.code === "KeyN")) {
@@ -417,18 +478,19 @@ function App() {
     switchToNote,
     toggleAutoResize,
     loadNotes,
+    shortcutSettingsOpen,
   ]);
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-[#1F1F1F]">
+      <div className="flex h-screen items-center justify-center bg-[#232323]">
         <p className="text-sm text-[#E5E5E7]/40">Loading...</p>
       </div>
     );
   }
 
   return (
-    <div className="relative flex h-screen flex-col bg-[#1F1F1F]">
+    <div className="relative flex h-screen flex-col bg-[#232323]">
       <Toolbar
         title={title}
         onBrowse={openBrowse}
@@ -454,6 +516,12 @@ function App() {
           createNoteAndFocus(true);
         }}
         onBrowseNotes={openBrowse}
+      />
+      <ShortcutSettings
+        open={shortcutSettingsOpen}
+        currentShortcut={globalShortcut}
+        onClose={() => setShortcutSettingsOpen(false)}
+        onSave={saveGlobalShortcut}
       />
       <Toast />
     </div>
