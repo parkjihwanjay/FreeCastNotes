@@ -115,11 +115,11 @@ export default function ActionPanel({
 
   return (
     <div
-      className="absolute inset-0 z-50 flex items-start justify-center pt-16"
+      className="animate-overlay-in absolute inset-0 z-50 flex items-start justify-center pt-16"
       onClick={onClose}
     >
       <div
-        className="w-80 overflow-hidden rounded-xl border border-white/10 bg-[#2C2C2E] shadow-2xl"
+        className="animate-panel-in w-80 overflow-hidden rounded-xl border border-white/10 bg-[#2C2C2E] shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Search */}

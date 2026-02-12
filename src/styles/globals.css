@@ -47,18 +47,79 @@ body {
   background: rgba(255, 255, 255, 0.25);
 }
 
-/* Toast animation */
-@keyframes toast-in {
+/* ── Text selection ── */
+::selection {
+  background: rgba(100, 130, 255, 0.35);
+}
+
+/* ── Focus ring (subtle) ── */
+input:focus-visible,
+button:focus-visible {
+  outline: 1px solid rgba(100, 130, 255, 0.5);
+  outline-offset: 1px;
+  border-radius: 4px;
+}
+
+/* ── Panel animations ── */
+@keyframes panel-in {
   from {
     opacity: 0;
-    transform: translateY(-8px);
+    transform: translateY(-6px) scale(0.98);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
   }
 }
 
-.animate-in {
-  animation: toast-in 0.2s ease-out;
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-panel-in {
+  animation: panel-in 0.15s ease-out;
+}
+
+.animate-overlay-in {
+  animation: overlay-in 0.12s ease-out;
+}
+
+/* ── Toast animation (fade in, hold, fade out) ── */
+@keyframes toast {
+  0% {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  12% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  85% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+.animate-toast {
+  animation: toast 2s ease-in-out forwards;
+}
+
+/* ── Search highlight ── */
+.search-match {
+  background: rgba(255, 200, 50, 0.3);
+  border-radius: 2px;
+}
+
+.search-match-active {
+  background: rgba(255, 200, 50, 0.6);
+  border-radius: 2px;
 }

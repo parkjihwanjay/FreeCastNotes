@@ -6,6 +6,7 @@ import Link from "@tiptap/extension-link";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import { KeyboardShortcuts } from "../components/Editor/extensions/KeyboardShortcuts";
+import { SearchAndReplace } from "../components/Editor/extensions/SearchAndReplace";
 
 export function useAppEditor() {
   const editor = useTipTapEditor({
@@ -35,6 +36,7 @@ export function useAppEditor() {
         HTMLAttributes: { class: "task-item" },
       }),
       KeyboardShortcuts,
+      SearchAndReplace,
     ],
     autofocus: true,
     editorProps: {

@@ -52,7 +52,7 @@ export default function NotesBrowser({ open, onClose }: NotesBrowserProps) {
   if (!open) return null;
 
   return (
-    <div className="absolute inset-0 z-50 flex flex-col bg-[#1C1C1E]/95 backdrop-blur-sm">
+    <div className="animate-overlay-in absolute inset-0 z-50 flex flex-col bg-[#1C1C1E]/95 backdrop-blur-sm">
       {/* Header */}
       <div className="flex shrink-0 flex-col gap-2 border-b border-white/8 px-4 pb-3 pt-14">
         {/* Search */}

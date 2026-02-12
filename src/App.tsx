@@ -8,6 +8,7 @@ import FormatBar from "./components/Editor/FormatBar";
 import NotesBrowser from "./components/NotesBrowser/NotesBrowser";
 import ActionPanel from "./components/ActionPanel/ActionPanel";
 import Toast from "./components/Toast/Toast";
+import FindBar from "./components/Editor/FindBar";
 import { useAppEditor } from "./hooks/useEditor";
 import { useAppStore } from "./stores/appStore";
 import { extractTitle } from "./lib/utils";
@@ -17,6 +18,7 @@ function App() {
   const editor = useAppEditor();
   const [browseOpen, setBrowseOpen] = useState(false);
   const [actionPanelOpen, setActionPanelOpen] = useState(false);
+  const [findBarOpen, setFindBarOpen] = useState(false);
   const {
     currentNote,
     loading,
@@ -41,6 +43,8 @@ function App() {
   browseOpenRef.current = browseOpen;
   const actionPanelOpenRef = useRef(actionPanelOpen);
   actionPanelOpenRef.current = actionPanelOpen;
+  const findBarOpenRef = useRef(findBarOpen);
+  findBarOpenRef.current = findBarOpen;
 
   // Track current note ID without re-triggering editor effects
   useEffect(() => {
@@ -69,6 +73,9 @@ function App() {
   // When currentNote changes, load its content into editor
   useEffect(() => {
     if (!editor || !currentNote) return;
+    // Clear search when switching notes
+    editor.commands.clearSearch();
+    setFindBarOpen(false);
     const currentContent = JSON.stringify(editor.getJSON());
     const noteContent = currentNote.content || "";
     if (noteContent && noteContent !== currentContent) {
@@ -162,7 +169,11 @@ function App() {
       const contentH = prosemirror.scrollHeight;
       const formatBarEl = document.querySelector("[data-format-bar]");
       const formatH = formatBarEl ? 40 : 0;
-      const total = 48 + contentH + 24 + formatH; // toolbar + content + editor padding + format bar
+      const findBarEl = document.querySelector("[data-find-bar]");
+      const findBarH = findBarEl
+        ? findBarEl.getBoundingClientRect().height
+        : 0;
+      const total = 48 + contentH + 24 + formatH + findBarH; // toolbar + content + editor padding + format bar + find bar
       const maxH = window.screen.availHeight * 0.8;
       const clamped = Math.max(200, Math.min(Math.ceil(total), maxH));
       try {
@@ -205,7 +216,8 @@ function App() {
       if (
         e.key === "Escape" &&
         !browseOpenRef.current &&
-        !actionPanelOpenRef.current
+        !actionPanelOpenRef.current &&
+        !findBarOpenRef.current
       ) {
         e.preventDefault();
         getCurrentWindow().hide();
@@ -221,6 +233,12 @@ function App() {
         e.preventDefault();
         setBrowseOpen((o) => !o);
         setActionPanelOpen(false);
+      }
+      // ⌘F — Find in Note
+      if (e.metaKey && !e.shiftKey && !e.altKey && e.key === "f") {
+        e.preventDefault();
+        setFindBarOpen(true);
+        // Focus handled by FindBar component
       }
       // ⌘N — New Note
       if (e.metaKey && !e.shiftKey && !e.altKey && e.key === "n") {
@@ -349,6 +367,12 @@ function App() {
         }}
         onActionPanel={() => setActionPanelOpen(true)}
       />
+      {findBarOpen && editor && (
+        <FindBar
+          editor={editor}
+          onClose={() => setFindBarOpen(false)}
+        />
+      )}
       <Editor editor={editor} />
       <FormatBar editor={editor} />
       <NotesBrowser open={browseOpen} onClose={() => setBrowseOpen(false)} />
