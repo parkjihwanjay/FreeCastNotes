@@ -1,24 +1,11 @@
-import { useEditor, EditorContent } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import Placeholder from "@tiptap/extension-placeholder";
+import { EditorContent, type Editor as TipTapEditor } from "@tiptap/react";
 import "./styles.css";
 
-export default function Editor() {
-  const editor = useEditor({
-    extensions: [
-      StarterKit,
-      Placeholder.configure({
-        placeholder: "Start writing...",
-      }),
-    ],
-    autofocus: true,
-    editorProps: {
-      attributes: {
-        class: "editor-content",
-      },
-    },
-  });
+interface EditorProps {
+  editor: TipTapEditor | null;
+}
 
+export default function Editor({ editor }: EditorProps) {
   return (
     <div className="flex-1 overflow-y-auto px-4 py-3">
       <EditorContent editor={editor} />

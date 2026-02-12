@@ -11,6 +11,12 @@
   outline: none;
 }
 
+/* Allow text selection inside the editor */
+.tiptap {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
 /* Placeholder */
 .tiptap p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
@@ -20,8 +26,213 @@
   height: 0;
 }
 
-/* Allow text selection inside the editor */
-.tiptap {
-  user-select: text;
-  -webkit-user-select: text;
+/* ── Headings ── */
+.tiptap h1 {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 0.6em 0 0.3em;
+  color: #f5f5f7;
+}
+
+.tiptap h2 {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.35;
+  margin: 0.5em 0 0.25em;
+  color: #f0f0f2;
+}
+
+.tiptap h3 {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.4;
+  margin: 0.4em 0 0.2em;
+  color: #ebebed;
+}
+
+/* ── Code Block ── */
+.tiptap pre {
+  background: #0d0d0d;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin: 0.5em 0;
+  overflow-x: auto;
+}
+
+.tiptap pre code {
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+  font-size: 13px;
+  color: #e5e5e7;
+  background: none;
+  padding: 0;
+  border-radius: 0;
+}
+
+/* ── Inline Code ── */
+.tiptap code {
+  font-family: "SF Mono", "Fira Code", monospace;
+  font-size: 12.5px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ff6b6b;
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+
+/* ── Blockquote ── */
+.tiptap blockquote {
+  border-left: 3px solid rgba(255, 255, 255, 0.2);
+  padding-left: 14px;
+  margin: 0.5em 0;
+  color: rgba(229, 229, 231, 0.7);
+}
+
+/* ── Horizontal Rule ── */
+.tiptap hr {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  margin: 1em 0;
+}
+
+/* ── Bullet List ── */
+.tiptap ul:not([data-type="taskList"]) {
+  padding-left: 24px;
+  margin: 0.3em 0;
+}
+
+.tiptap ul:not([data-type="taskList"]) li {
+  padding-left: 4px;
+}
+
+/* Bullet styles by nesting level */
+.tiptap ul:not([data-type="taskList"]) {
+  list-style-type: disc;
+}
+.tiptap ul:not([data-type="taskList"]) ul {
+  list-style-type: circle;
+}
+.tiptap ul:not([data-type="taskList"]) ul ul {
+  list-style-type: square;
+}
+.tiptap ul:not([data-type="taskList"]) ul ul ul {
+  list-style-type: "◆ ";
+}
+
+/* ── Ordered List ── */
+.tiptap ol {
+  padding-left: 24px;
+  margin: 0.3em 0;
+  list-style-type: decimal;
+}
+
+.tiptap ol li {
+  padding-left: 4px;
+}
+
+.tiptap ol ol {
+  list-style-type: decimal;
+}
+
+/* ── Task List ── */
+.tiptap ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0;
+  margin: 0.3em 0;
+}
+
+.tiptap ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding-left: 0;
+}
+
+.tiptap ul[data-type="taskList"] li > label {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  margin-top: 3px;
+}
+
+.tiptap ul[data-type="taskList"] li > label input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #ff6363;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.tiptap ul[data-type="taskList"] li > label input[type="checkbox"]:checked {
+  background: #ff6363;
+  border-color: #ff6363;
+}
+
+.tiptap ul[data-type="taskList"] li > label input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 1.5px;
+  width: 5px;
+  height: 8px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.tiptap ul[data-type="taskList"] li > div {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Checked task item text — strikethrough + dimmed */
+.tiptap ul[data-type="taskList"] li[data-checked="true"] > div {
+  text-decoration: line-through;
+  opacity: 0.5;
+}
+
+/* Nested task lists */
+.tiptap ul[data-type="taskList"] ul[data-type="taskList"] {
+  margin-left: 24px;
+}
+
+/* ── Links ── */
+.tiptap a,
+.tiptap .editor-link {
+  color: #64b5f6;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+/* ── Strikethrough ── */
+.tiptap s {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+/* ── Bold ── */
+.tiptap strong {
+  font-weight: 700;
+  color: #f5f5f7;
+}
+
+/* ── Italic ── */
+.tiptap em {
+  font-style: italic;
+}
+
+/* ── Underline ── */
+.tiptap u {
+  text-underline-offset: 2px;
+}
+
+/* ── Paragraph spacing ── */
+.tiptap p {
+  margin: 0.15em 0;
 }
