@@ -48,7 +48,7 @@ export default function FormatBar({ editor }: FormatBarProps) {
     editor.isActive(name, attrs);
 
   return (
-    <div className="relative flex h-10 shrink-0 items-center gap-0.5 border-t border-white/8 bg-[#2C2C2E] px-2">
+    <div data-format-bar className="relative flex h-10 shrink-0 items-center gap-0.5 border-t border-white/8 bg-[#2C2C2E] px-2">
       {/* Heading dropdown */}
       <div className="relative">
         <FormatBtn

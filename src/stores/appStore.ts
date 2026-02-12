@@ -30,6 +30,10 @@ interface AppState {
   goForward: () => Promise<void>;
   canGoBack: () => boolean;
   canGoForward: () => boolean;
+
+  // Auto-resize
+  autoResizeEnabled: boolean;
+  toggleAutoResize: () => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -154,5 +158,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   canGoForward: () => {
     const { history, historyIndex } = get();
     return historyIndex < history.length - 1;
+  },
+
+  // Auto-resize
+  autoResizeEnabled: localStorage.getItem("autoResize") !== "false",
+  toggleAutoResize: () => {
+    set((state) => {
+      const next = !state.autoResizeEnabled;
+      localStorage.setItem("autoResize", String(next));
+      return { autoResizeEnabled: next };
+    });
   },
 }));

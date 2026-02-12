@@ -1,4 +1,7 @@
 import { useEffect, useRef, useCallback, useState } from "react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { PhysicalPosition, LogicalSize } from "@tauri-apps/api/dpi";
+import { listen } from "@tauri-apps/api/event";
 import Toolbar from "./components/Toolbar/Toolbar";
 import Editor from "./components/Editor/Editor";
 import FormatBar from "./components/Editor/FormatBar";
@@ -26,10 +29,18 @@ function App() {
     goForward,
     togglePin,
     showToast,
+    autoResizeEnabled,
+    toggleAutoResize,
   } = useAppStore();
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const currentNoteIdRef = useRef<string | null>(null);
+
+  // Refs for overlay state (used in Esc handler without re-creating effect)
+  const browseOpenRef = useRef(browseOpen);
+  browseOpenRef.current = browseOpen;
+  const actionPanelOpenRef = useRef(actionPanelOpen);
+  actionPanelOpenRef.current = actionPanelOpen;
 
   // Track current note ID without re-triggering editor effects
   useEffect(() => {
@@ -90,9 +101,115 @@ function App() {
     };
   }, [editor, handleUpdate]);
 
+  // Listen for tray "New Note" event
+  useEffect(() => {
+    let unlistenFn: (() => void) | null = null;
+    listen("tray-new-note", () => {
+      createNote().then(() => editor?.commands.focus());
+    }).then((fn) => {
+      unlistenFn = fn;
+    });
+    return () => {
+      unlistenFn?.();
+    };
+  }, [createNote, editor]);
+
+  // Window position persistence
+  useEffect(() => {
+    let unlistenFn: (() => void) | null = null;
+
+    const setup = async () => {
+      const appWindow = getCurrentWindow();
+
+      // Restore saved position
+      const saved = localStorage.getItem("windowPos");
+      if (saved) {
+        try {
+          const { x, y } = JSON.parse(saved);
+          await appWindow.setPosition(new PhysicalPosition(x, y));
+        } catch {
+          /* ignore invalid saved position */
+        }
+      }
+
+      // Save position on window move (debounced)
+      let moveTimer: number;
+      unlistenFn = await appWindow.onMoved(({ payload }) => {
+        clearTimeout(moveTimer);
+        moveTimer = window.setTimeout(() => {
+          localStorage.setItem(
+            "windowPos",
+            JSON.stringify({ x: payload.x, y: payload.y }),
+          );
+        }, 500);
+      });
+    };
+
+    setup();
+    return () => {
+      unlistenFn?.();
+    };
+  }, []);
+
+  // Auto-resize window to content
+  useEffect(() => {
+    if (!autoResizeEnabled || !editor) return;
+
+    const prosemirror = document.querySelector(".ProseMirror");
+    if (!prosemirror) return;
+
+    const doResize = async () => {
+      const contentH = prosemirror.scrollHeight;
+      const formatBarEl = document.querySelector("[data-format-bar]");
+      const formatH = formatBarEl ? 40 : 0;
+      const total = 48 + contentH + 24 + formatH; // toolbar + content + editor padding + format bar
+      const maxH = window.screen.availHeight * 0.8;
+      const clamped = Math.max(200, Math.min(Math.ceil(total), maxH));
+      try {
+        await getCurrentWindow().setSize(new LogicalSize(400, clamped));
+      } catch {
+        /* ignore resize errors */
+      }
+    };
+
+    let timer: number;
+    const scheduleResize = () => {
+      clearTimeout(timer);
+      timer = window.setTimeout(doResize, 50);
+    };
+
+    // Initial resize
+    scheduleResize();
+
+    const resizeObs = new ResizeObserver(scheduleResize);
+    resizeObs.observe(prosemirror);
+
+    const mutObs = new MutationObserver(scheduleResize);
+    mutObs.observe(prosemirror, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+
+    return () => {
+      resizeObs.disconnect();
+      mutObs.disconnect();
+      clearTimeout(timer);
+    };
+  }, [autoResizeEnabled, editor]);
+
   // Global keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      // Esc — Hide window when no overlay is open
+      if (
+        e.key === "Escape" &&
+        !browseOpenRef.current &&
+        !actionPanelOpenRef.current
+      ) {
+        e.preventDefault();
+        getCurrentWindow().hide();
+      }
       // ⌘K — Action Panel
       if (e.metaKey && !e.shiftKey && !e.altKey && e.key === "k") {
         e.preventDefault();
@@ -136,7 +253,12 @@ function App() {
         goForward();
       }
       // ⇧⌘P — Toggle Pin
-      if (e.metaKey && e.shiftKey && !e.altKey && (e.key === "p" || e.key === "P")) {
+      if (
+        e.metaKey &&
+        e.shiftKey &&
+        !e.altKey &&
+        (e.key === "p" || e.key === "P")
+      ) {
         e.preventDefault();
         const note = useAppStore.getState().currentNote;
         if (note) {
@@ -146,20 +268,47 @@ function App() {
         }
       }
       // ⇧⌘C — Copy as Markdown
-      if (e.metaKey && e.shiftKey && !e.altKey && (e.key === "c" || e.key === "C")) {
+      if (
+        e.metaKey &&
+        e.shiftKey &&
+        !e.altKey &&
+        (e.key === "c" || e.key === "C")
+      ) {
         e.preventDefault();
         if (editor) {
           copyAsMarkdown(editor).then(() => showToast("Copied as Markdown"));
         }
       }
       // ⇧⌘E — Export (open action panel)
-      if (e.metaKey && e.shiftKey && !e.altKey && (e.key === "e" || e.key === "E")) {
+      if (
+        e.metaKey &&
+        e.shiftKey &&
+        !e.altKey &&
+        (e.key === "e" || e.key === "E")
+      ) {
         e.preventDefault();
         setActionPanelOpen(true);
       }
+      // ⇧⌘/ — Toggle auto-resize
+      if (e.metaKey && e.shiftKey && !e.altKey && e.key === "/") {
+        e.preventDefault();
+        const wasEnabled = useAppStore.getState().autoResizeEnabled;
+        toggleAutoResize();
+        showToast(
+          wasEnabled ? "Auto-sizing disabled" : "Auto-sizing enabled",
+        );
+      }
       // ⌘0-⌘9 — Quick access to pinned notes
-      if (e.metaKey && !e.shiftKey && !e.altKey && e.key >= "0" && e.key <= "9") {
-        const pinnedNotes = useAppStore.getState().notes.filter((n) => n.is_pinned);
+      if (
+        e.metaKey &&
+        !e.shiftKey &&
+        !e.altKey &&
+        e.key >= "0" &&
+        e.key <= "9"
+      ) {
+        const pinnedNotes = useAppStore
+          .getState()
+          .notes.filter((n) => n.is_pinned);
         const idx = e.key === "0" ? 9 : parseInt(e.key) - 1;
         if (idx < pinnedNotes.length) {
           e.preventDefault();
@@ -169,7 +318,16 @@ function App() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [createNote, editor, goBack, goForward, togglePin, showToast, switchToNote]);
+  }, [
+    createNote,
+    editor,
+    goBack,
+    goForward,
+    togglePin,
+    showToast,
+    switchToNote,
+    toggleAutoResize,
+  ]);
 
   const title = extractTitle(currentNote?.content ?? "");
 

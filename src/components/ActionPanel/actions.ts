@@ -311,6 +311,23 @@ export function buildActions(
 
     // --- Window ---
     {
+      id: "toggle-auto-resize",
+      label: store.autoResizeEnabled
+        ? "Disable Window Auto-sizing"
+        : "Enable Window Auto-sizing",
+      shortcut: "⇧⌘/",
+      icon: "↕",
+      category: "window",
+      execute: () => {
+        const wasEnabled = store.autoResizeEnabled;
+        store.toggleAutoResize();
+        showToast(
+          wasEnabled ? "Auto-sizing disabled" : "Auto-sizing enabled",
+        );
+        callbacks.onClose();
+      },
+    },
+    {
       id: "hide-format-bar",
       label: "Toggle Format Bar",
       shortcut: "⌥⌘,",
