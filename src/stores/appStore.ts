@@ -56,7 +56,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({ notes, loading: false });
     } catch (error) {
       console.error("Failed to load notes", error);
-      set({ notes: [], loading: false });
+      set({ loading: false });
       get().showToast("Could not load notes");
     }
   },
@@ -68,7 +68,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       const { history, historyIndex } = get();
       const newHistory = [...history.slice(0, historyIndex + 1), note.id];
       set({
-        notes: notes.length > 0 ? notes : [note],
+        notes,
         currentNote: note,
         history: newHistory,
         historyIndex: newHistory.length - 1,
@@ -82,22 +82,31 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   switchToNote: async (id: string) => {
-    const note = await db.getNote(id);
-    if (note) {
+    try {
+      const note = await db.getNote(id);
+      if (!note) return;
+
       const { history, historyIndex, currentNote } = get();
       // Don't push to history if we're navigating to the same note
       if (currentNote?.id === id) {
         set({ currentNote: note });
       } else {
         const newHistory = [...history.slice(0, historyIndex + 1), id];
-        set({ currentNote: note, history: newHistory, historyIndex: newHistory.length - 1 });
+        set({
+          currentNote: note,
+          history: newHistory,
+          historyIndex: newHistory.length - 1,
+        });
       }
+    } catch (error) {
+      console.error("Failed to switch note", error);
     }
   },
 
   updateCurrentNoteContent: async (content: string) => {
     const { currentNote } = get();
     if (!currentNote) return;
+
     try {
       await db.updateNote(currentNote.id, content);
       const updatedNote = {

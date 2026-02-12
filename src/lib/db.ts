@@ -1,20 +1,16 @@
-import Database from "@tauri-apps/plugin-sql";
 import type { Note, DeletedNote } from "../types";
 
-let db: Database | null = null;
-
-async function getDb(): Promise<Database> {
-  if (!db) {
-    db = await Database.load("sqlite:notes.db");
-  }
-  return db;
+interface LocalDbState {
+  notes: Note[];
+  deletedNotes: DeletedNote[];
 }
+
+const STORAGE_KEY = "freecastnotes.data.v1";
 
 function uuid(): string {
   const c = globalThis.crypto;
   if (typeof c?.randomUUID === "function") return c.randomUUID();
   if (typeof c?.getRandomValues === "function") {
-    // RFC4122 v4 fallback for WebViews without randomUUID
     const bytes = c.getRandomValues(new Uint8Array(16));
     bytes[6] = (bytes[6] & 0x0f) | 0x40;
     bytes[8] = (bytes[8] & 0x3f) | 0x80;
@@ -28,195 +24,215 @@ function now(): string {
   return new Date().toISOString();
 }
 
-function swapPlaceholders(query: string): string {
-  if (/\$\d+/.test(query)) {
-    return query.replace(/\$\d+/g, "?");
-  }
-
-  if (query.includes("?")) {
-    let i = 0;
-    return query.replace(/\?/g, () => `$${++i}`);
-  }
-
-  return query;
+function toIsoOrNow(value: unknown): string {
+  if (typeof value !== "string") return now();
+  const t = Date.parse(value);
+  return Number.isNaN(t) ? now() : new Date(t).toISOString();
 }
 
-async function executeQuery(
-  d: Database,
-  query: string,
-  values: unknown[] = [],
-) {
-  try {
-    return await d.execute(query, values);
-  } catch (firstError) {
-    const fallback = swapPlaceholders(query);
-    if (fallback === query) {
-      throw firstError;
-    }
+function normalizeNote(value: unknown): Note | null {
+  if (!value || typeof value !== "object") return null;
+  const v = value as Partial<Note>;
+  if (typeof v.id !== "string") return null;
+  return {
+    id: v.id,
+    content: typeof v.content === "string" ? v.content : "",
+    created_at: toIsoOrNow(v.created_at),
+    updated_at: toIsoOrNow(v.updated_at),
+    is_pinned: Number(v.is_pinned) ? 1 : 0,
+    pin_order: Number.isFinite(Number(v.pin_order)) ? Number(v.pin_order) : -1,
+  };
+}
 
-    try {
-      return await d.execute(fallback, values);
-    } catch (secondError) {
-      console.error("SQL execute failed", { query, fallback, firstError, secondError });
-      throw secondError;
+function normalizeDeletedNote(value: unknown): DeletedNote | null {
+  if (!value || typeof value !== "object") return null;
+  const v = value as Partial<DeletedNote>;
+  if (typeof v.id !== "string") return null;
+  return {
+    id: v.id,
+    content: typeof v.content === "string" ? v.content : "",
+    deleted_at: toIsoOrNow(v.deleted_at),
+    original_created_at: toIsoOrNow(v.original_created_at),
+  };
+}
+
+function sortNotes(notes: Note[]): Note[] {
+  return [...notes].sort((a, b) => {
+    if (a.is_pinned !== b.is_pinned) return b.is_pinned - a.is_pinned;
+    if (a.is_pinned && b.is_pinned && a.pin_order !== b.pin_order) {
+      return a.pin_order - b.pin_order;
     }
+    return (
+      new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+    );
+  });
+}
+
+function loadState(): LocalDbState {
+  const empty: LocalDbState = { notes: [], deletedNotes: [] };
+
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return empty;
+
+    const parsed = JSON.parse(raw) as {
+      notes?: unknown[];
+      deletedNotes?: unknown[];
+    };
+
+    const notes = Array.isArray(parsed.notes)
+      ? parsed.notes.map(normalizeNote).filter((n): n is Note => n !== null)
+      : [];
+
+    const deletedNotes = Array.isArray(parsed.deletedNotes)
+      ? parsed.deletedNotes
+          .map(normalizeDeletedNote)
+          .filter((n): n is DeletedNote => n !== null)
+      : [];
+
+    return {
+      notes: sortNotes(notes),
+      deletedNotes: deletedNotes.sort(
+        (a, b) =>
+          new Date(b.deleted_at).getTime() - new Date(a.deleted_at).getTime(),
+      ),
+    };
+  } catch {
+    return empty;
   }
 }
 
-async function selectQuery<T>(
-  d: Database,
-  query: string,
-  values: unknown[] = [],
-): Promise<T> {
-  try {
-    return await d.select<T>(query, values);
-  } catch (firstError) {
-    const fallback = swapPlaceholders(query);
-    if (fallback === query) {
-      throw firstError;
-    }
-
-    try {
-      return await d.select<T>(fallback, values);
-    } catch (secondError) {
-      console.error("SQL select failed", { query, fallback, firstError, secondError });
-      throw secondError;
-    }
-  }
+function saveState(state: LocalDbState): void {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
 export async function createNote(): Promise<Note> {
-  const d = await getDb();
+  const state = loadState();
+  const timestamp = now();
   const note: Note = {
     id: uuid(),
     content: "",
-    created_at: now(),
-    updated_at: now(),
+    created_at: timestamp,
+    updated_at: timestamp,
     is_pinned: 0,
     pin_order: -1,
   };
-  await executeQuery(
-    d,
-    "INSERT INTO notes (id, content, created_at, updated_at, is_pinned, pin_order) VALUES ($1, $2, $3, $4, $5, $6)",
-    [
-      note.id,
-      note.content,
-      note.created_at,
-      note.updated_at,
-      note.is_pinned,
-      note.pin_order,
-    ],
-  );
+
+  state.notes.unshift(note);
+  saveState({ ...state, notes: sortNotes(state.notes) });
   return note;
 }
 
 export async function getNote(id: string): Promise<Note | null> {
-  const d = await getDb();
-  const rows = await selectQuery<Note[]>(d, "SELECT * FROM notes WHERE id = $1", [
-    id,
-  ]);
-  return rows[0] ?? null;
+  const state = loadState();
+  return state.notes.find((n) => n.id === id) ?? null;
 }
 
 export async function updateNote(id: string, content: string): Promise<void> {
-  const d = await getDb();
-  await executeQuery(
-    d,
-    "UPDATE notes SET content = $1, updated_at = $2 WHERE id = $3",
-    [content, now(), id],
-  );
+  const state = loadState();
+  const idx = state.notes.findIndex((n) => n.id === id);
+  if (idx < 0) return;
+
+  state.notes[idx] = {
+    ...state.notes[idx],
+    content,
+    updated_at: now(),
+  };
+
+  saveState({ ...state, notes: sortNotes(state.notes) });
 }
 
 export async function deleteNote(id: string): Promise<void> {
-  const d = await getDb();
-  const rows = await selectQuery<Note[]>(d, "SELECT * FROM notes WHERE id = $1", [
-    id,
-  ]);
-  const note = rows[0];
-  if (!note) return;
-  await executeQuery(
-    d,
-    "INSERT INTO deleted_notes (id, content, deleted_at, original_created_at) VALUES ($1, $2, $3, $4)",
-    [note.id, note.content, now(), note.created_at],
-  );
-  await executeQuery(d, "DELETE FROM notes WHERE id = $1", [id]);
+  const state = loadState();
+  const idx = state.notes.findIndex((n) => n.id === id);
+  if (idx < 0) return;
+
+  const note = state.notes[idx];
+  state.notes.splice(idx, 1);
+  state.deletedNotes.unshift({
+    id: note.id,
+    content: note.content,
+    deleted_at: now(),
+    original_created_at: note.created_at,
+  });
+
+  saveState({
+    notes: sortNotes(state.notes),
+    deletedNotes: state.deletedNotes,
+  });
 }
 
 export async function listNotes(): Promise<Note[]> {
-  const d = await getDb();
-  return selectQuery<Note[]>(
-    d,
-    "SELECT * FROM notes ORDER BY is_pinned DESC, pin_order ASC, updated_at DESC",
-  );
+  return sortNotes(loadState().notes);
 }
 
 export async function searchNotes(query: string): Promise<Note[]> {
-  const d = await getDb();
-  const pattern = `%${query}%`;
-  return selectQuery<Note[]>(
-    d,
-    "SELECT * FROM notes WHERE content LIKE $1 ORDER BY is_pinned DESC, updated_at DESC",
-    [pattern],
-  );
+  const q = query.trim().toLowerCase();
+  if (!q) return listNotes();
+
+  const notes = loadState().notes;
+  return sortNotes(notes.filter((n) => n.content.toLowerCase().includes(q)));
 }
 
 export async function togglePin(id: string): Promise<Note | null> {
-  const d = await getDb();
-  const rows = await selectQuery<Note[]>(d, "SELECT * FROM notes WHERE id = $1", [
-    id,
-  ]);
-  const note = rows[0];
-  if (!note) return null;
-  const newPinned = note.is_pinned ? 0 : 1;
-  const newPinOrder = newPinned ? 0 : -1;
-  await executeQuery(
-    d,
-    "UPDATE notes SET is_pinned = $1, pin_order = $2, updated_at = $3 WHERE id = $4",
-    [newPinned, newPinOrder, now(), id],
+  const state = loadState();
+  const idx = state.notes.findIndex((n) => n.id === id);
+  if (idx < 0) return null;
+
+  const note = state.notes[idx];
+  const willPin = note.is_pinned === 0;
+  const maxPinOrder = state.notes.reduce(
+    (max, n) => (n.is_pinned ? Math.max(max, n.pin_order) : max),
+    -1,
   );
-  return { ...note, is_pinned: newPinned, pin_order: newPinOrder };
+
+  const updated: Note = {
+    ...note,
+    is_pinned: willPin ? 1 : 0,
+    pin_order: willPin ? maxPinOrder + 1 : -1,
+    updated_at: now(),
+  };
+
+  state.notes[idx] = updated;
+  saveState({ ...state, notes: sortNotes(state.notes) });
+  return updated;
 }
 
 export async function duplicateNote(id: string): Promise<Note | null> {
-  const d = await getDb();
-  const rows = await selectQuery<Note[]>(d, "SELECT * FROM notes WHERE id = $1", [
-    id,
-  ]);
-  const note = rows[0];
-  if (!note) return null;
+  const state = loadState();
+  const original = state.notes.find((n) => n.id === id);
+  if (!original) return null;
+
+  const timestamp = now();
   const dup: Note = {
     id: uuid(),
-    content: note.content,
-    created_at: now(),
-    updated_at: now(),
+    content: original.content,
+    created_at: timestamp,
+    updated_at: timestamp,
     is_pinned: 0,
     pin_order: -1,
   };
-  await executeQuery(
-    d,
-    "INSERT INTO notes (id, content, created_at, updated_at, is_pinned, pin_order) VALUES ($1, $2, $3, $4, $5, $6)",
-    [dup.id, dup.content, dup.created_at, dup.updated_at, dup.is_pinned, dup.pin_order],
-  );
+
+  state.notes.unshift(dup);
+  saveState({ ...state, notes: sortNotes(state.notes) });
   return dup;
 }
 
 export async function listDeletedNotes(): Promise<DeletedNote[]> {
-  const d = await getDb();
-  return selectQuery<DeletedNote[]>(
-    d,
-    "SELECT * FROM deleted_notes ORDER BY deleted_at DESC",
+  return [...loadState().deletedNotes].sort(
+    (a, b) =>
+      new Date(b.deleted_at).getTime() - new Date(a.deleted_at).getTime(),
   );
 }
 
 export async function restoreNote(id: string): Promise<Note | null> {
-  const d = await getDb();
-  const rows = await selectQuery<DeletedNote[]>(
-    d,
-    "SELECT * FROM deleted_notes WHERE id = $1",
-    [id],
-  );
-  const deleted = rows[0];
-  if (!deleted) return null;
+  const state = loadState();
+  const idx = state.deletedNotes.findIndex((n) => n.id === id);
+  if (idx < 0) return null;
+
+  const deleted = state.deletedNotes[idx];
+  state.deletedNotes.splice(idx, 1);
+
   const note: Note = {
     id: deleted.id,
     content: deleted.content,
@@ -225,17 +241,23 @@ export async function restoreNote(id: string): Promise<Note | null> {
     is_pinned: 0,
     pin_order: -1,
   };
-  await executeQuery(
-    d,
-    "INSERT INTO notes (id, content, created_at, updated_at, is_pinned, pin_order) VALUES ($1, $2, $3, $4, $5, $6)",
-    [note.id, note.content, note.created_at, note.updated_at, note.is_pinned, note.pin_order],
-  );
-  await executeQuery(d, "DELETE FROM deleted_notes WHERE id = $1", [id]);
+
+  const existingIdx = state.notes.findIndex((n) => n.id === id);
+  if (existingIdx >= 0) {
+    state.notes[existingIdx] = note;
+  } else {
+    state.notes.unshift(note);
+  }
+
+  saveState({ ...state, notes: sortNotes(state.notes) });
   return note;
 }
 
 export async function purgeDeletedNotes(): Promise<void> {
-  const d = await getDb();
-  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-  await executeQuery(d, "DELETE FROM deleted_notes WHERE deleted_at < $1", [cutoff]);
+  const state = loadState();
+  const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const filtered = state.deletedNotes.filter(
+    (n) => new Date(n.deleted_at).getTime() >= cutoff,
+  );
+  saveState({ ...state, deletedNotes: filtered });
 }
