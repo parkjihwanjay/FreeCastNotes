@@ -23,7 +23,7 @@ export default function Toolbar({
   return (
     <div
       data-tauri-drag-region
-      className={`relative flex h-12 shrink-0 items-center justify-between border-b border-white/7 bg-[#2B2C30]/95 px-3 transition-opacity duration-180 ${
+      className={`relative flex h-12 shrink-0 items-center justify-between border-b border-white/7 bg-[#232323] px-3 transition-opacity duration-180 ${
         chromeActive ? "opacity-100" : "opacity-38"
       }`}
     >
@@ -40,18 +40,18 @@ export default function Toolbar({
           onClick={() => appWindow.hide()}
         />
         <TrafficLight
-          color="#FEBC2E"
+          color="#595A5F"
           hoverIcon="−"
           hovering={hovering}
-          onClick={() => appWindow.minimize()}
+          onClick={() => {}}
+          disabled
         />
         <TrafficLight
-          color="#28C840"
+          color="#595A5F"
           hoverIcon="+"
           hovering={hovering}
-          onClick={() => {
-            /* fullscreen — no-op for now */
-          }}
+          onClick={() => {}}
+          disabled
         />
       </div>
 
@@ -90,20 +90,25 @@ function TrafficLight({
   hoverIcon,
   hovering,
   onClick,
+  disabled = false,
 }: {
   color: string;
   hoverIcon: string;
   hovering: boolean;
   onClick: () => void;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex h-3 w-3 items-center justify-center rounded-full text-[8px] leading-none text-black/60 transition-opacity hover:brightness-110"
+      disabled={disabled}
+      className={`flex h-3 w-3 items-center justify-center rounded-full text-[8px] leading-none text-black/60 transition-opacity ${
+        disabled ? "cursor-default opacity-90" : "hover:brightness-110"
+      }`}
       style={{ backgroundColor: color }}
     >
-      {hovering ? hoverIcon : ""}
+      {!disabled && hovering ? hoverIcon : ""}
     </button>
   );
 }

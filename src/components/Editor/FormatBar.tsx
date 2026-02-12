@@ -93,7 +93,7 @@ export default function FormatBar({
   return (
     <div
       data-format-bar
-      className={`relative flex h-12 shrink-0 items-center border-t border-white/7 bg-[#2B2C30]/95 px-2 transition-opacity duration-180 ${
+      className={`relative flex h-12 shrink-0 items-center border-t border-white/7 bg-[#232323] px-2 transition-opacity duration-180 ${
         chromeActive ? "opacity-100" : "opacity-38"
       }`}
     >

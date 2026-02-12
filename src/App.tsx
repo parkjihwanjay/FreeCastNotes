@@ -339,10 +339,14 @@ function App() {
           return;
         }
 
-        // Esc — Hide window
+        // Esc — Close browse view first, otherwise hide window
         if (key === "escape") {
           e.preventDefault();
-          setBrowseOpen(false);
+          if (browseOpen) {
+            setBrowseOpen(false);
+            editor?.commands.focus();
+            return;
+          }
           setActionPanelOpen(false);
           setFindBarOpen(false);
           getCurrentWindow().hide();
@@ -493,6 +497,7 @@ function App() {
     switchToNote,
     toggleAutoResize,
     loadNotes,
+    browseOpen,
     shortcutSettingsOpen,
   ]);
 
