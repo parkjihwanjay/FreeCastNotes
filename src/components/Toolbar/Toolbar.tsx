@@ -3,7 +3,13 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 
 const appWindow = getCurrentWindow();
 
-export default function Toolbar() {
+interface ToolbarProps {
+  title?: string;
+  onBrowse?: () => void;
+  onNewNote?: () => void;
+}
+
+export default function Toolbar({ title = "Untitled", onBrowse, onNewNote }: ToolbarProps) {
   const [hovering, setHovering] = useState(false);
 
   return (
@@ -45,14 +51,14 @@ export default function Toolbar() {
         data-tauri-drag-region
         className="pointer-events-none absolute left-1/2 -translate-x-1/2 text-sm font-medium text-[#E5E5E7]/70"
       >
-        Untitled
+        {title}
       </span>
 
       {/* Right buttons */}
       <div className="flex items-center gap-1">
         <ToolbarButton label="⌘K" onClick={() => {}} title="Action Panel" />
-        <ToolbarButton label="☰" onClick={() => {}} title="Browse Notes" />
-        <ToolbarButton label="+" onClick={() => {}} title="New Note" />
+        <ToolbarButton label="☰" onClick={() => onBrowse?.()} title="Browse Notes" />
+        <ToolbarButton label="+" onClick={() => onNewNote?.()} title="New Note" />
       </div>
     </div>
   );
