@@ -1,27 +1,35 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
 const appWindow = getCurrentWindow();
 
 interface ToolbarProps {
   title?: string;
+  chromeActive?: boolean;
   onBrowse?: () => void;
   onNewNote?: () => void;
   onActionPanel?: () => void;
 }
 
-export default function Toolbar({ title = "Untitled", onBrowse, onNewNote, onActionPanel }: ToolbarProps) {
+export default function Toolbar({
+  title = "Untitled",
+  chromeActive = true,
+  onBrowse,
+  onNewNote,
+  onActionPanel,
+}: ToolbarProps) {
   const [hovering, setHovering] = useState(false);
 
   return (
     <div
       data-tauri-drag-region
-      className="flex h-12 shrink-0 items-center justify-between px-3"
-      style={{ backgroundColor: "#2C2C2E" }}
+      className={`relative flex h-12 shrink-0 items-center justify-between border-b border-white/7 bg-[#2B2C30]/95 px-3 transition-opacity duration-180 ${
+        chromeActive ? "opacity-100" : "opacity-38"
+      }`}
     >
       {/* Traffic Lights */}
       <div
-        className="flex items-center gap-2"
+        className="relative z-10 flex items-center gap-2"
         onMouseEnter={() => setHovering(true)}
         onMouseLeave={() => setHovering(false)}
       >
@@ -50,16 +58,28 @@ export default function Toolbar({ title = "Untitled", onBrowse, onNewNote, onAct
       {/* Title */}
       <span
         data-tauri-drag-region
-        className="pointer-events-none absolute left-1/2 -translate-x-1/2 text-sm font-medium text-[#E5E5E7]/70"
+        className="pointer-events-none absolute left-1/2 -translate-x-1/2 text-sm font-semibold tracking-[0.01em] text-[#E5E5E7]/58"
       >
         {title}
       </span>
 
       {/* Right buttons */}
-      <div className="flex items-center gap-1">
-        <ToolbarButton label="⌘K" onClick={() => onActionPanel?.()} title="Action Panel" />
-        <ToolbarButton label="☰" onClick={() => onBrowse?.()} title="Browse Notes" />
-        <ToolbarButton label="+" onClick={() => onNewNote?.()} title="New Note" />
+      <div className="relative z-10 flex items-center gap-0.5">
+        <ToolbarButton
+          icon={<CommandIcon />}
+          onClick={() => onActionPanel?.()}
+          title="Action Panel (⌘K)"
+        />
+        <ToolbarButton
+          icon={<BrowseIcon />}
+          onClick={() => onBrowse?.()}
+          title="Browse Notes (⌘P)"
+        />
+        <ToolbarButton
+          icon={<PlusIcon />}
+          onClick={() => onNewNote?.()}
+          title="New Note (⌘N)"
+        />
       </div>
     </div>
   );
@@ -78,6 +98,7 @@ function TrafficLight({
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
       className="flex h-3 w-3 items-center justify-center rounded-full text-[8px] leading-none text-black/60 transition-opacity hover:brightness-110"
       style={{ backgroundColor: color }}
@@ -88,21 +109,64 @@ function TrafficLight({
 }
 
 function ToolbarButton({
-  label,
+  icon,
   onClick,
   title,
 }: {
-  label: string;
+  icon: ReactNode;
   onClick: () => void;
   title: string;
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
       title={title}
-      className="flex h-[34px] items-center rounded-md px-2.5 text-[14px] text-[#E5E5E7]/65 transition-colors hover:bg-white/10 hover:text-[#E5E5E7]"
+      className="flex h-[34px] w-[34px] items-center justify-center rounded-[9px] text-[#D6D7DA]/72 transition-all hover:bg-white/10 hover:text-[#F1F1F3]"
     >
-      {label}
+      {icon}
     </button>
+  );
+}
+
+function CommandIcon() {
+  return (
+    <span className="text-[16px] leading-none font-medium">⌘</span>
+  );
+}
+
+function BrowseIcon() {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      className="h-[16px] w-[16px]"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="3" y="3.2" width="14" height="13.6" rx="2.5" />
+      <path d="M6.5 7h7" />
+      <path d="M6.5 10h7" />
+      <path d="M6.5 13h7" />
+    </svg>
+  );
+}
+
+function PlusIcon() {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      className="h-[16px] w-[16px]"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M10 4.5v11" />
+      <path d="M4.5 10h11" />
+    </svg>
   );
 }

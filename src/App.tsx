@@ -23,6 +23,8 @@ function App() {
   const [findBarOpen, setFindBarOpen] = useState(false);
   const [shortcutSettingsOpen, setShortcutSettingsOpen] = useState(false);
   const [globalShortcut, setGlobalShortcut] = useState("Alt+N");
+  const [isPointerInside, setIsPointerInside] = useState(true);
+  const [isWindowFocused, setIsWindowFocused] = useState(true);
   const [title, setTitle] = useState("Untitled");
   const {
     currentNote,
@@ -231,6 +233,19 @@ function App() {
     setup();
     return () => {
       unlistenFn?.();
+    };
+  }, []);
+
+  // Chrome opacity behavior (Raycast-like): active only when window is focused and pointer is over it
+  useEffect(() => {
+    const onFocus = () => setIsWindowFocused(true);
+    const onBlur = () => setIsWindowFocused(false);
+    setIsWindowFocused(document.hasFocus());
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("blur", onBlur);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("blur", onBlur);
     };
   }, []);
 
@@ -489,10 +504,17 @@ function App() {
     );
   }
 
+  const chromeActive = isWindowFocused && isPointerInside;
+
   return (
-    <div className="relative flex h-screen flex-col bg-[#232323]">
+    <div
+      className="relative flex h-screen flex-col bg-[#232323]"
+      onMouseEnter={() => setIsPointerInside(true)}
+      onMouseLeave={() => setIsPointerInside(false)}
+    >
       <Toolbar
         title={title}
+        chromeActive={chromeActive}
         onBrowse={openBrowse}
         onNewNote={() => {
           createNoteAndFocus(true);
@@ -506,7 +528,7 @@ function App() {
         />
       )}
       <Editor editor={editor} />
-      <FormatBar editor={editor} />
+      <FormatBar editor={editor} chromeActive={chromeActive} />
       <NotesBrowser open={browseOpen} onClose={() => setBrowseOpen(false)} />
       <ActionPanel
         open={actionPanelOpen}

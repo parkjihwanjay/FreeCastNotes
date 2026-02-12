@@ -9,9 +9,13 @@ import type { Editor } from "@tiptap/react";
 
 interface FormatBarProps {
   editor: Editor | null;
+  chromeActive?: boolean;
 }
 
-export default function FormatBar({ editor }: FormatBarProps) {
+export default function FormatBar({
+  editor,
+  chromeActive = true,
+}: FormatBarProps) {
   const [visible, setVisible] = useState(true);
   const [headingOpen, setHeadingOpen] = useState(false);
   const headingMenuRef = useRef<HTMLDivElement | null>(null);
@@ -87,7 +91,12 @@ export default function FormatBar({ editor }: FormatBarProps) {
   ];
 
   return (
-    <div data-format-bar className="relative flex h-12 shrink-0 items-center border-t border-white/8 bg-[#2C2C2E] px-2">
+    <div
+      data-format-bar
+      className={`relative flex h-12 shrink-0 items-center border-t border-white/7 bg-[#2B2C30]/95 px-2 transition-opacity duration-180 ${
+        chromeActive ? "opacity-100" : "opacity-38"
+      }`}
+    >
       <div className="mx-auto flex items-center gap-0.5">
         {/* Heading dropdown */}
         <div ref={headingMenuRef} className="relative">
@@ -99,7 +108,7 @@ export default function FormatBar({ editor }: FormatBarProps) {
             shortcut={["⌥", "⌘", "1-3"]}
           />
           {headingOpen && (
-            <div className="absolute bottom-full left-0 z-50 mb-2 w-72 overflow-hidden rounded-[24px] border border-white/15 bg-[#2D2D30] p-2 shadow-[0_16px_32px_rgba(0,0,0,0.58)]">
+            <div className="absolute bottom-full left-0 z-50 mb-2 w-72 overflow-hidden rounded-[24px] border border-white/15 bg-[#2F3035] p-2 shadow-[0_16px_32px_rgba(0,0,0,0.58)]">
               {headingItems.map(({ level, label, shortcut }) => (
                 <button
                   key={level}
@@ -130,7 +139,7 @@ export default function FormatBar({ editor }: FormatBarProps) {
 
         {/* Inline formats */}
         <FormatBtn
-          icon={<span className="text-[18px] font-bold leading-none">B</span>}
+          icon={<span className="text-[17px] font-bold leading-none">B</span>}
           active={isActive("bold")}
           onClick={() => run(() => editor.chain().focus().toggleBold().run())}
           tooltip="Bold"
@@ -138,7 +147,7 @@ export default function FormatBar({ editor }: FormatBarProps) {
         />
         <FormatBtn
           icon={
-            <span className="text-[18px] leading-none italic font-medium">I</span>
+            <span className="text-[17px] leading-none italic font-medium">I</span>
           }
           active={isActive("italic")}
           onClick={() => run(() => editor.chain().focus().toggleItalic().run())}
@@ -147,7 +156,7 @@ export default function FormatBar({ editor }: FormatBarProps) {
         />
         <FormatBtn
           icon={
-            <span className="text-[18px] leading-none line-through font-medium">
+            <span className="text-[17px] leading-none line-through font-medium">
               S
             </span>
           }
@@ -158,7 +167,7 @@ export default function FormatBar({ editor }: FormatBarProps) {
         />
         <FormatBtn
           icon={
-            <span className="text-[18px] leading-none underline font-medium">
+            <span className="text-[17px] leading-none underline font-medium">
               U
             </span>
           }
@@ -269,10 +278,10 @@ function FormatBtn({
       <button
         type="button"
         onClick={onClick}
-        className={`flex h-[34px] min-w-[34px] items-center justify-center rounded-[9px] px-2 transition-all ${
+        className={`flex h-[34px] min-w-[34px] items-center justify-center rounded-[10px] px-2 transition-all ${
           active
-            ? "bg-white/13 text-[#f5f5f7]"
-            : "text-[#d2d2d4] hover:bg-white/8 hover:text-[#f1f1f3]"
+            ? "bg-white/14 text-[#f5f5f7]"
+            : "text-[#d2d2d4]/85 hover:bg-white/9 hover:text-[#f1f1f3]"
         }`}
       >
         {icon}
@@ -283,7 +292,7 @@ function FormatBtn({
 }
 
 function Separator() {
-  return <div className="mx-1 h-6 w-px bg-white/10" />;
+  return <div className="mx-1 h-6 w-px bg-white/9" />;
 }
 
 function Tooltip({
@@ -295,7 +304,7 @@ function Tooltip({
 }) {
   return (
     <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 translate-y-1 opacity-0 transition-all duration-150 group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100">
-      <div className="flex items-center gap-2 whitespace-nowrap rounded-[18px] border border-white/18 bg-[#2E2E30] px-3 py-2 shadow-[0_10px_24px_rgba(0,0,0,0.55)]">
+      <div className="flex items-center gap-2 whitespace-nowrap rounded-[18px] border border-white/18 bg-[#303136] px-3 py-2 shadow-[0_10px_24px_rgba(0,0,0,0.55)]">
         <span className="text-[14px] font-semibold text-[#f3f3f5]">{label}</span>
         {shortcut && shortcut.length > 0 ? (
           <ShortcutKeys keysList={shortcut} compact />
@@ -331,7 +340,7 @@ function ShortcutKeys({
 function HeadingIcon() {
   return (
     <span className="flex items-center gap-0.5">
-      <span className="text-[18px] font-medium leading-none">H</span>
+      <span className="text-[17px] font-medium leading-none">H</span>
       <svg
         viewBox="0 0 16 16"
         className="h-3 w-3 text-current"
