@@ -3,13 +3,17 @@ import Toolbar from "./components/Toolbar/Toolbar";
 import Editor from "./components/Editor/Editor";
 import FormatBar from "./components/Editor/FormatBar";
 import NotesBrowser from "./components/NotesBrowser/NotesBrowser";
+import ActionPanel from "./components/ActionPanel/ActionPanel";
+import Toast from "./components/Toast/Toast";
 import { useAppEditor } from "./hooks/useEditor";
 import { useAppStore } from "./stores/appStore";
 import { extractTitle } from "./lib/utils";
+import { copyAsMarkdown } from "./lib/export";
 
 function App() {
   const editor = useAppEditor();
   const [browseOpen, setBrowseOpen] = useState(false);
+  const [actionPanelOpen, setActionPanelOpen] = useState(false);
   const {
     currentNote,
     loading,
@@ -18,6 +22,10 @@ function App() {
     updateCurrentNoteContent,
     notes,
     switchToNote,
+    goBack,
+    goForward,
+    togglePin,
+    showToast,
   } = useAppStore();
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -85,23 +93,83 @@ function App() {
   // Global keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      // ⌘K — Action Panel
+      if (e.metaKey && !e.shiftKey && !e.altKey && e.key === "k") {
+        e.preventDefault();
+        setActionPanelOpen((o) => !o);
+        setBrowseOpen(false);
+      }
       // ⌘P — Browse Notes
-      if (e.metaKey && e.key === "p") {
+      if (e.metaKey && !e.shiftKey && !e.altKey && e.key === "p") {
         e.preventDefault();
         setBrowseOpen((o) => !o);
+        setActionPanelOpen(false);
       }
       // ⌘N — New Note
-      if (e.metaKey && e.key === "n") {
+      if (e.metaKey && !e.shiftKey && !e.altKey && e.key === "n") {
         e.preventDefault();
         createNote().then(() => {
           setBrowseOpen(false);
+          setActionPanelOpen(false);
           editor?.commands.focus();
         });
+      }
+      // ⌘D — Duplicate Note
+      if (e.metaKey && !e.shiftKey && !e.altKey && e.key === "d") {
+        e.preventDefault();
+        const note = useAppStore.getState().currentNote;
+        if (note) {
+          useAppStore.getState().duplicateNote(note.id).then(() => {
+            showToast("Note duplicated");
+            editor?.commands.focus();
+          });
+        }
+      }
+      // ⌘[ — Navigate Back
+      if (e.metaKey && !e.shiftKey && !e.altKey && e.key === "[") {
+        e.preventDefault();
+        goBack();
+      }
+      // ⌘] — Navigate Forward
+      if (e.metaKey && !e.shiftKey && !e.altKey && e.key === "]") {
+        e.preventDefault();
+        goForward();
+      }
+      // ⇧⌘P — Toggle Pin
+      if (e.metaKey && e.shiftKey && !e.altKey && (e.key === "p" || e.key === "P")) {
+        e.preventDefault();
+        const note = useAppStore.getState().currentNote;
+        if (note) {
+          togglePin(note.id).then(() => {
+            showToast(note.is_pinned ? "Note unpinned" : "Note pinned");
+          });
+        }
+      }
+      // ⇧⌘C — Copy as Markdown
+      if (e.metaKey && e.shiftKey && !e.altKey && (e.key === "c" || e.key === "C")) {
+        e.preventDefault();
+        if (editor) {
+          copyAsMarkdown(editor).then(() => showToast("Copied as Markdown"));
+        }
+      }
+      // ⇧⌘E — Export (open action panel)
+      if (e.metaKey && e.shiftKey && !e.altKey && (e.key === "e" || e.key === "E")) {
+        e.preventDefault();
+        setActionPanelOpen(true);
+      }
+      // ⌘0-⌘9 — Quick access to pinned notes
+      if (e.metaKey && !e.shiftKey && !e.altKey && e.key >= "0" && e.key <= "9") {
+        const pinnedNotes = useAppStore.getState().notes.filter((n) => n.is_pinned);
+        const idx = e.key === "0" ? 9 : parseInt(e.key) - 1;
+        if (idx < pinnedNotes.length) {
+          e.preventDefault();
+          switchToNote(pinnedNotes[idx].id);
+        }
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [createNote, editor]);
+  }, [createNote, editor, goBack, goForward, togglePin, showToast, switchToNote]);
 
   const title = extractTitle(currentNote?.content ?? "");
 
@@ -121,10 +189,21 @@ function App() {
         onNewNote={() => {
           createNote().then(() => editor?.commands.focus());
         }}
+        onActionPanel={() => setActionPanelOpen(true)}
       />
       <Editor editor={editor} />
       <FormatBar editor={editor} />
       <NotesBrowser open={browseOpen} onClose={() => setBrowseOpen(false)} />
+      <ActionPanel
+        open={actionPanelOpen}
+        onClose={() => setActionPanelOpen(false)}
+        editor={editor}
+        onNewNote={() => {
+          createNote().then(() => editor?.commands.focus());
+        }}
+        onBrowseNotes={() => setBrowseOpen(true)}
+      />
+      <Toast />
     </div>
   );
 }
