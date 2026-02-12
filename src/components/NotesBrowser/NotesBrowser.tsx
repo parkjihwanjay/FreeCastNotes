@@ -10,7 +10,9 @@ interface NotesBrowserProps {
 
 export default function NotesBrowser({ open, onClose }: NotesBrowserProps) {
   const [search, setSearch] = useState("");
+  const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const { notes, currentNote, switchToNote, createNote, deleteNote, togglePin } =
     useAppStore();
 
@@ -27,25 +29,6 @@ export default function NotesBrowser({ open, onClose }: NotesBrowserProps) {
     [notes, currentNote],
   );
 
-  // Keyboard handling
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: KeyboardEvent) => {
-      const key = e.key.toLowerCase();
-      const mod = e.metaKey || e.ctrlKey;
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onClose();
-      }
-      if (mod && (key === "n" || e.code === "KeyN")) {
-        e.preventDefault();
-        createNote().then(() => onClose());
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [open, onClose, createNote]);
-
   const filtered = useMemo(() => {
     if (!search.trim()) return visibleNotes;
     const q = search.toLowerCase();
@@ -55,6 +38,83 @@ export default function NotesBrowser({ open, onClose }: NotesBrowserProps) {
       return title.includes(q) || content.includes(q);
     });
   }, [visibleNotes, search]);
+
+  // Choose a default selected note for keyboard navigation
+  useEffect(() => {
+    if (!open) return;
+    if (filtered.length === 0) {
+      setSelectedIndex(-1);
+      return;
+    }
+
+    if (!search.trim()) {
+      const idx = currentNote
+        ? filtered.findIndex((n) => n.id === currentNote.id)
+        : -1;
+      setSelectedIndex(idx >= 0 ? idx : 0);
+      return;
+    }
+
+    setSelectedIndex((i) => Math.max(0, Math.min(i, filtered.length - 1)));
+  }, [open, filtered, currentNote?.id, search]);
+
+  // Keep selected row visible while navigating with arrows
+  useEffect(() => {
+    if (!open || selectedIndex < 0) return;
+    const selected = listRef.current?.querySelector<HTMLElement>(
+      `[data-note-index="${selectedIndex}"]`,
+    );
+    selected?.scrollIntoView({ block: "nearest" });
+  }, [open, selectedIndex, filtered.length]);
+
+  // Keyboard handling
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      const key = e.key.toLowerCase();
+      const mod = e.metaKey || e.ctrlKey;
+
+      if (key === "escape") {
+        e.preventDefault();
+        onClose();
+      }
+
+      if (key === "arrowdown") {
+        if (filtered.length === 0) return;
+        e.preventDefault();
+        setSelectedIndex((i) => Math.min(i + 1, filtered.length - 1));
+      }
+
+      if (key === "arrowup") {
+        if (filtered.length === 0) return;
+        e.preventDefault();
+        setSelectedIndex((i) => Math.max(i - 1, 0));
+      }
+
+      if (key === "enter") {
+        const selected = filtered[selectedIndex];
+        if (!selected) return;
+        e.preventDefault();
+        switchToNote(selected.id);
+        onClose();
+      }
+
+      if (mod && (key === "n" || e.code === "KeyN")) {
+        e.preventDefault();
+        createNote().then(() => onClose());
+      }
+    };
+
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [
+    open,
+    onClose,
+    createNote,
+    filtered,
+    selectedIndex,
+    switchToNote,
+  ]);
 
   if (!open) return null;
 
@@ -80,24 +140,30 @@ export default function NotesBrowser({ open, onClose }: NotesBrowserProps) {
       </div>
 
       {/* Notes list */}
-      <div className="flex-1 overflow-y-auto px-1 py-1">
+      <div ref={listRef} className="flex-1 overflow-y-auto px-1 py-1">
         {filtered.length === 0 ? (
           <p className="px-4 py-8 text-center text-sm text-[#E5E5E7]/30">
             No notes found
           </p>
         ) : (
-          filtered.map((note) => (
-            <NoteItem
+          filtered.map((note, index) => (
+            <div
               key={note.id}
-              note={note}
-              isCurrent={note.id === currentNote?.id}
-              onSelect={() => {
-                switchToNote(note.id);
-                onClose();
-              }}
-              onPin={() => togglePin(note.id)}
-              onDelete={() => deleteNote(note.id)}
-            />
+              data-note-index={index}
+              onMouseEnter={() => setSelectedIndex(index)}
+            >
+              <NoteItem
+                note={note}
+                isCurrent={note.id === currentNote?.id}
+                isHighlighted={index === selectedIndex}
+                onSelect={() => {
+                  switchToNote(note.id);
+                  onClose();
+                }}
+                onPin={() => togglePin(note.id)}
+                onDelete={() => deleteNote(note.id)}
+              />
+            </div>
           ))
         )}
       </div>

@@ -4,6 +4,7 @@ import type { Note } from "../../types";
 interface NoteItemProps {
   note: Note;
   isCurrent: boolean;
+  isHighlighted?: boolean;
   onSelect: () => void;
   onPin: () => void;
   onDelete: () => void;
@@ -12,6 +13,7 @@ interface NoteItemProps {
 export default function NoteItem({
   note,
   isCurrent,
+  isHighlighted = false,
   onSelect,
   onPin,
   onDelete,
@@ -23,7 +25,11 @@ export default function NoteItem({
   return (
     <button
       onClick={onSelect}
-      className="group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-white/8"
+      className={`group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors ${
+        isHighlighted
+          ? "bg-white/12"
+          : "hover:bg-white/8"
+      }`}
     >
       {/* Current indicator or pin icon */}
       <div className="flex w-4 shrink-0 items-center justify-center">

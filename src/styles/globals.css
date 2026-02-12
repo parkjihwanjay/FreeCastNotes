@@ -18,9 +18,16 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #1f1f1f;
+  background-color: transparent;
   color: #e5e5e7;
   user-select: none;
+}
+
+#root {
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background-color: #1f1f1f;
 }
 
 /* Prevent text selection on toolbar elements */
