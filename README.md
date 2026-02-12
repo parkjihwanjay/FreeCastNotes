@@ -6,7 +6,7 @@ A fast, minimal, always-on-top notes app for macOS — inspired by [Raycast Note
 
 ## Why?
 
-Raycast Notes is a beautifully designed scratchpad that lives in your menu bar. But it's limited to **5 notes** on the free plan. FreeCastNotes removes that limit — giving you unlimited notes with the same keyboard-driven workflow, completely free and open source.
+Raycast Notes is a beautifully designed scratchpad. But it's limited to **5 notes** on the free plan. FreeCastNotes removes that limit — giving you unlimited notes with the same keyboard-driven workflow, completely free and open source.
 
 ## Features
 
