@@ -2,8 +2,11 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
+#[cfg(target_os = "macos")]
+use objc2_app_kit::{NSWindow, NSWindowCollectionBehavior};
 use tauri::Emitter;
 use tauri::Manager;
+use tauri::PhysicalPosition;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
@@ -16,18 +19,106 @@ struct ShortcutConfigState {
     current: Mutex<String>,
 }
 
+fn clamp_f64(value: f64, min: f64, max: f64) -> f64 {
+    if max < min {
+        min
+    } else {
+        value.clamp(min, max)
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn configure_macos_overlay_behavior(window: &tauri::WebviewWindow) {
+    let _ = window.with_webview(|webview| unsafe {
+        let raw_window = webview.ns_window();
+        if raw_window.is_null() {
+            return;
+        }
+
+        let ns_window: &NSWindow = &*raw_window.cast();
+        let mut behavior = ns_window.collectionBehavior();
+        behavior |= NSWindowCollectionBehavior::CanJoinAllSpaces;
+        behavior |= NSWindowCollectionBehavior::MoveToActiveSpace;
+        behavior |= NSWindowCollectionBehavior::FullScreenAuxiliary;
+        ns_window.setCollectionBehavior(behavior);
+    });
+}
+
+#[cfg(not(target_os = "macos"))]
+fn configure_macos_overlay_behavior(_window: &tauri::WebviewWindow) {}
+
+fn position_window_near_cursor(app: &tauri::AppHandle, window: &tauri::WebviewWindow) {
+    let Ok(cursor) = app.cursor_position() else {
+        return;
+    };
+
+    let size = window
+        .outer_size()
+        .or_else(|_| window.inner_size())
+        .ok();
+    let Some(size) = size else {
+        return;
+    };
+
+    let width = size.width as f64;
+    let height = size.height as f64;
+    let desired_x = cursor.x - (width / 2.0);
+    let desired_y = cursor.y - 56.0;
+
+    let monitor = window
+        .monitor_from_point(cursor.x, cursor.y)
+        .ok()
+        .flatten()
+        .or_else(|| window.current_monitor().ok().flatten())
+        .or_else(|| window.primary_monitor().ok().flatten());
+
+    let (x, y) = if let Some(monitor) = monitor {
+        let work_area = monitor.work_area();
+        let work_x = work_area.position.x as f64;
+        let work_y = work_area.position.y as f64;
+        let work_w = work_area.size.width as f64;
+        let work_h = work_area.size.height as f64;
+        let margin = 14.0;
+
+        let min_x = work_x + margin;
+        let max_x = work_x + work_w - width - margin;
+        let min_y = work_y + margin;
+        let max_y = work_y + work_h - height - margin;
+
+        (
+            clamp_f64(desired_x, min_x, max_x),
+            clamp_f64(desired_y, min_y, max_y),
+        )
+    } else {
+        (desired_x, desired_y)
+    };
+
+    let _ = window.set_position(PhysicalPosition::new(
+        x.round() as i32,
+        y.round() as i32,
+    ));
+}
+
+fn show_window_on_top(app: &tauri::AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        configure_macos_overlay_behavior(&window);
+        let _ = window.set_always_on_top(true);
+        let _ = window.set_visible_on_all_workspaces(true);
+        let _ = window.unminimize();
+        position_window_near_cursor(app, &window);
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+}
+
 fn toggle_window(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let is_visible = window.is_visible().unwrap_or(false);
-        if is_visible {
-            if window.is_focused().unwrap_or(false) {
-                let _ = window.hide();
-            } else {
-                let _ = window.set_focus();
-            }
+        let is_focused = window.is_focused().unwrap_or(false);
+        if is_visible && is_focused {
+            let _ = window.hide();
         } else {
-            let _ = window.show();
-            let _ = window.set_focus();
+            show_window_on_top(app);
         }
     }
 }
@@ -145,6 +236,11 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
 
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.set_always_on_top(true);
+                let _ = window.set_visible_on_all_workspaces(true);
+            }
+
             // Register configured global shortcut (or fallback)
             let configured =
                 load_shortcut_from_disk(app.handle()).unwrap_or_else(|| DEFAULT_GLOBAL_SHORTCUT.to_string());
@@ -217,24 +313,15 @@ pub fn run() {
                 .on_menu_event(|app, event| match event.id().as_ref() {
                     "show_hide" => toggle_window(app),
                     "new_note" => {
-                        if let Some(window) = app.get_webview_window("main") {
-                            let _ = window.show();
-                            let _ = window.set_focus();
-                        }
+                        show_window_on_top(app);
                         let _ = app.emit("tray-new-note", ());
                     }
                     "set_shortcut" => {
-                        if let Some(window) = app.get_webview_window("main") {
-                            let _ = window.show();
-                            let _ = window.set_focus();
-                        }
+                        show_window_on_top(app);
                         let _ = app.emit("tray-open-shortcut-settings", ());
                     }
                     "about" => {
-                        if let Some(window) = app.get_webview_window("main") {
-                            let _ = window.show();
-                            let _ = window.set_focus();
-                        }
+                        show_window_on_top(app);
                     }
                     "quit" => {
                         app.exit(0);

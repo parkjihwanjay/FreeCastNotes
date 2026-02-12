@@ -23,8 +23,7 @@ function App() {
   const [findBarOpen, setFindBarOpen] = useState(false);
   const [shortcutSettingsOpen, setShortcutSettingsOpen] = useState(false);
   const [globalShortcut, setGlobalShortcut] = useState("Alt+N");
-  const [isPointerInside, setIsPointerInside] = useState(true);
-  const [isWindowFocused, setIsWindowFocused] = useState(true);
+  const [isPointerInside, setIsPointerInside] = useState(false);
   const [title, setTitle] = useState("Untitled");
   const {
     currentNote,
@@ -233,19 +232,6 @@ function App() {
     setup();
     return () => {
       unlistenFn?.();
-    };
-  }, []);
-
-  // Chrome opacity behavior (Raycast-like): active only when window is focused and pointer is over it
-  useEffect(() => {
-    const onFocus = () => setIsWindowFocused(true);
-    const onBlur = () => setIsWindowFocused(false);
-    setIsWindowFocused(document.hasFocus());
-    window.addEventListener("focus", onFocus);
-    window.addEventListener("blur", onBlur);
-    return () => {
-      window.removeEventListener("focus", onFocus);
-      window.removeEventListener("blur", onBlur);
     };
   }, []);
 
@@ -509,7 +495,7 @@ function App() {
     );
   }
 
-  const chromeActive = isWindowFocused && isPointerInside;
+  const chromeActive = isPointerInside;
 
   return (
     <div
