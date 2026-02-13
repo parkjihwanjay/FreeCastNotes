@@ -6,7 +6,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:swift": "concurrently \"vite\" \"cd swift-app && swift run\"",
     "build": "tsc && vite build",
+    "build:swift": "tsc && vite build && cd swift-app && swift build -c release",
     "preview": "vite preview",
     "tauri": "tauri"
   },

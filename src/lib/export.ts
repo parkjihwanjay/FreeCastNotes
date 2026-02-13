@@ -1,5 +1,4 @@
-import { save } from "@tauri-apps/plugin-dialog";
-import { writeTextFile } from "@tauri-apps/plugin-fs";
+import { bridge } from "./bridge";
 import type { Editor } from "@tiptap/react";
 
 /** Copy plain text to clipboard */
@@ -48,15 +47,7 @@ export async function exportToFile(
       break;
   }
 
-  const filePath = await save({
-    filters: [{ name: filterName, extensions: [extension] }],
-    defaultPath: `note.${extension}`,
-  });
-
-  if (!filePath) return false;
-
-  await writeTextFile(filePath, content);
-  return true;
+  return bridge.exportFile(content, extension, filterName);
 }
 
 // --- TipTap JSON to Markdown converter ---

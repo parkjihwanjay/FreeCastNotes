@@ -38,7 +38,7 @@ body {
 }
 
 /* Prevent text selection on toolbar elements */
-[data-tauri-drag-region] {
+[data-drag-region] {
   user-select: none;
   -webkit-user-select: none;
 }

@@ -1,8 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from "react";
-import { getCurrentWindow } from "@tauri-apps/api/window";
-import { PhysicalPosition, LogicalSize } from "@tauri-apps/api/dpi";
-import { listen } from "@tauri-apps/api/event";
-import { invoke } from "@tauri-apps/api/core";
+import { bridge } from "./lib/bridge";
 import Toolbar from "./components/Toolbar/Toolbar";
 import Editor from "./components/Editor/Editor";
 import FormatBar from "./components/Editor/FormatBar";
@@ -152,7 +149,7 @@ function App() {
 
   const saveGlobalShortcut = useCallback(
     async (shortcut: string) => {
-      await invoke("set_global_shortcut", { shortcut });
+      await bridge.setGlobalShortcut(shortcut);
       setGlobalShortcut(shortcut);
       showToast(`Global shortcut set: ${shortcut}`);
     },
@@ -161,7 +158,7 @@ function App() {
 
   // Load global shortcut from backend
   useEffect(() => {
-    invoke<string>("get_global_shortcut")
+    bridge.getGlobalShortcut()
       .then((shortcut) => {
         if (shortcut) setGlobalShortcut(shortcut);
       })
@@ -172,82 +169,50 @@ function App() {
 
   // Listen for tray "New Note" event
   useEffect(() => {
-    let unlistenFn: (() => void) | null = null;
-    listen("tray-new-note", () => {
+    return bridge.on("tray-new-note", () => {
       createNoteAndFocus(true);
-    }).then((fn) => {
-      unlistenFn = fn;
     });
-    return () => {
-      unlistenFn?.();
-    };
   }, [createNoteAndFocus]);
 
   // Listen for tray "Set Global Shortcut" event
   useEffect(() => {
-    let unlistenFn: (() => void) | null = null;
-    listen("tray-open-shortcut-settings", () => {
+    return bridge.on("tray-open-shortcut-settings", () => {
       setBrowseOpen(false);
       setActionPanelOpen(false);
       setShortcutSettingsOpen(true);
-    }).then((fn) => {
-      unlistenFn = fn;
     });
-    return () => {
-      unlistenFn?.();
-    };
   }, []);
 
   // Window position persistence
   useEffect(() => {
-    let unlistenFn: (() => void) | null = null;
-
     const setup = async () => {
-      const appWindow = getCurrentWindow();
-
       // Restore saved position
       const saved = localStorage.getItem("windowPos");
       if (saved) {
         try {
           const { x, y } = JSON.parse(saved);
-          await appWindow.setPosition(new PhysicalPosition(x, y));
+          await bridge.setWindowPosition(x, y);
         } catch {
           /* ignore invalid saved position */
         }
       }
-
-      // Save position on window move (debounced)
-      let moveTimer: number;
-      unlistenFn = await appWindow.onMoved(({ payload }) => {
-        clearTimeout(moveTimer);
-        moveTimer = window.setTimeout(() => {
-          localStorage.setItem(
-            "windowPos",
-            JSON.stringify({ x: payload.x, y: payload.y }),
-          );
-        }, 500);
-      });
     };
 
     setup();
-    return () => {
-      unlistenFn?.();
-    };
   }, []);
 
   // Keep fixed window width and sane height on startup
   useEffect(() => {
     const enforceWindowSize = async () => {
       try {
-        const appWindow = getCurrentWindow();
-        const currentSize = await appWindow.innerSize();
+        const currentSize = await bridge.getWindowSize();
         const maxH = Math.max(200, Math.floor(window.screen.availHeight * 0.8));
         const nextHeight = Math.max(
           200,
           Math.min(currentSize.height, maxH),
         );
         if (currentSize.width !== 650 || currentSize.height !== nextHeight) {
-          await appWindow.setSize(new LogicalSize(650, nextHeight));
+          await bridge.setWindowSize(650, nextHeight);
         }
       } catch {
         /* ignore resize errors */
@@ -278,7 +243,7 @@ function App() {
       const maxH = window.screen.availHeight * 0.8;
       const clamped = Math.max(200, Math.min(Math.ceil(total), maxH));
       try {
-        await getCurrentWindow().setSize(new LogicalSize(650, clamped));
+        await bridge.setWindowSize(650, clamped);
       } catch {
         /* ignore resize errors */
       }
@@ -335,7 +300,7 @@ function App() {
           }
           setActionPanelOpen(false);
           setFindBarOpen(false);
-          getCurrentWindow().hide();
+          bridge.hideWindow();
           return;
         }
         // ⌘K — Action Panel
