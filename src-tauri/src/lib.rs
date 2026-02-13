@@ -19,6 +19,114 @@ struct ShortcutConfigState {
     current: Mutex<String>,
 }
 
+// CGS Private API declarations (macOS only)
+#[cfg(target_os = "macos")]
+mod cgs {
+    pub type CGSConnectionID = i32;
+    pub type CGSSpaceID = i32;
+    pub type CGWindowID = u32;
+
+    #[link(name = "CoreGraphics", kind = "framework")]
+    extern "C" {
+        // Get connection to Window Server
+        pub fn CGSMainConnectionID() -> CGSConnectionID;
+
+        // Get current active space ID
+        pub fn CGSGetActiveSpace(cid: CGSConnectionID) -> CGSSpaceID;
+
+        // Add windows to specific spaces
+        pub fn CGSAddWindowsToSpaces(
+            cid: CGSConnectionID,
+            windows: *const std::ffi::c_void,
+            spaces: *const std::ffi::c_void,
+        );
+
+        // Remove windows from spaces (for future use)
+        #[allow(dead_code)]
+        pub fn CGSRemoveWindowsFromSpaces(
+            cid: CGSConnectionID,
+            windows: *const std::ffi::c_void,
+            spaces: *const std::ffi::c_void,
+        );
+    }
+}
+
+// Helper function to get CGWindowID from Tauri WebviewWindow
+#[cfg(target_os = "macos")]
+fn get_window_id(webview_window: &tauri::WebviewWindow) -> Option<cgs::CGWindowID> {
+    use std::sync::{Arc, Mutex};
+
+    let window_id = Arc::new(Mutex::new(0u32));
+    let window_id_clone = window_id.clone();
+
+    let _ = webview_window.with_webview(move |webview| unsafe {
+        let raw_window = webview.ns_window();
+        if !raw_window.is_null() {
+            let ns_window: &NSWindow = &*raw_window.cast();
+            // NSWindow.windowNumber corresponds directly to CGWindowID
+            let window_number = ns_window.windowNumber();
+            *window_id_clone.lock().unwrap() = window_number as u32;
+        }
+    });
+
+    let id = *window_id.lock().unwrap();
+    if id != 0 {
+        Some(id)
+    } else {
+        None
+    }
+}
+
+// Helper function to create CFArray from i32 values
+#[cfg(target_os = "macos")]
+fn create_cf_array_from_i32(values: &[i32]) -> core_foundation::array::CFArray<core_foundation::number::CFNumber> {
+    use core_foundation::number::CFNumber;
+    use core_foundation::array::CFArray;
+
+    let numbers: Vec<CFNumber> = values
+        .iter()
+        .map(|&value| CFNumber::from(value))
+        .collect();
+
+    CFArray::from_CFTypes(&numbers)
+}
+
+// Add window to the current active space using CGS APIs
+#[cfg(target_os = "macos")]
+fn add_window_to_current_space(window_id: cgs::CGWindowID) -> Result<(), String> {
+    use core_foundation::base::TCFType;
+
+    unsafe {
+        // Get connection to Window Server
+        let connection = cgs::CGSMainConnectionID();
+
+        // Get currently active space
+        let active_space = cgs::CGSGetActiveSpace(connection);
+
+        if active_space <= 0 {
+            return Err("Failed to get active space".to_string());
+        }
+
+        // Create CFArrays for windows and spaces
+        let window_array = create_cf_array_from_i32(&[window_id as i32]);
+        let space_array = create_cf_array_from_i32(&[active_space]);
+
+        // Add window to the active space
+        cgs::CGSAddWindowsToSpaces(
+            connection,
+            window_array.as_concrete_TypeRef() as *const std::ffi::c_void,
+            space_array.as_concrete_TypeRef() as *const std::ffi::c_void,
+        );
+
+        Ok(())
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn add_window_to_current_space(_window_id: u32) -> Result<(), String> {
+    Ok(())
+}
+
 fn clamp_f64(value: f64, min: f64, max: f64) -> f64 {
     if max < min {
         min
@@ -81,13 +189,13 @@ fn position_window_near_cursor(app: &tauri::AppHandle, window: &tauri::WebviewWi
 
 fn show_window_on_top(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
-        // Hide window first to force re-evaluation of space
+        // Hide window first to reset its state
         let _ = window.hide();
 
-        // Position window near cursor (this determines target screen/space)
+        // Position window near cursor (determines target screen)
         position_window_near_cursor(app, &window);
 
-        // Use VERY aggressive approach to appear in current space
+        // Configure window for overlay behavior
         #[cfg(target_os = "macos")]
         {
             let _ = window.with_webview(|webview| unsafe {
@@ -98,24 +206,34 @@ fn show_window_on_top(app: &tauri::AppHandle) {
 
                 let ns_window: &NSWindow = &*raw_window.cast();
 
-                // Set EXTREME window level (NSScreenSaverWindowLevel = 1000)
-                // This is higher than any normal window, ensures appearing over EVERYTHING
-                ns_window.setLevel(1000);
+                // Set high window level (NSPopUpMenuWindowLevel)
+                ns_window.setLevel(101);
 
-                // Set behavior for fullscreen compatibility
+                // Set collection behavior for fullscreen compatibility
                 let behavior = NSWindowCollectionBehavior::FullScreenAuxiliary
                     | NSWindowCollectionBehavior::FullScreenAllowsTiling;
                 ns_window.setCollectionBehavior(behavior);
 
-                // Make window key and order front REGARDLESS
+                // Order window to front
                 ns_window.orderFrontRegardless();
                 ns_window.makeKeyAndOrderFront(None);
             });
         }
 
+        // Show window
         let _ = window.set_always_on_top(true);
         let _ = window.show();
         let _ = window.set_focus();
+
+        // CRITICAL: Use CGS to force window into current space
+        #[cfg(target_os = "macos")]
+        {
+            if let Some(window_id) = get_window_id(&window) {
+                if let Err(e) = add_window_to_current_space(window_id) {
+                    log::warn!("Failed to add window to current space: {}", e);
+                }
+            }
+        }
     }
 }
 
