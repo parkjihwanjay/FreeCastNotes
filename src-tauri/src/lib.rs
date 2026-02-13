@@ -81,9 +81,6 @@ fn position_window_near_cursor(app: &tauri::AppHandle, window: &tauri::WebviewWi
 
 fn show_window_on_top(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
-        // Position window near cursor FIRST (determines which screen/space to appear in)
-        position_window_near_cursor(app, &window);
-
         // Use aggressive Spotlight-like approach to appear on current space/screen
         #[cfg(target_os = "macos")]
         {
@@ -95,18 +92,34 @@ fn show_window_on_top(app: &tauri::AppHandle) {
 
                 let ns_window: &NSWindow = &*raw_window.cast();
 
+                // CRITICAL: Remove window from all spaces first
+                // This ensures it will appear in the CURRENT space, not stay in old space
+                ns_window.orderOut(None);
+
                 // Set window level to NSPopUpMenuWindowLevel (101)
                 // This ensures window appears OVER fullscreen apps, like Spotlight
                 ns_window.setLevel(101);
 
-                // Set collection behavior for appearing over fullscreen
-                let behavior = NSWindowCollectionBehavior::CanJoinAllSpaces
-                    | NSWindowCollectionBehavior::FullScreenAuxiliary;
+                // Set ONLY FullScreenAuxiliary - NO CanJoinAllSpaces
+                // Spotlight appears in ONE space at a time, not all spaces
+                let behavior = NSWindowCollectionBehavior::FullScreenAuxiliary;
                 ns_window.setCollectionBehavior(behavior);
+            });
+        }
 
-                // Force window to appear regardless of app activation state
-                ns_window.orderFrontRegardless();
-                ns_window.makeKeyAndOrderFront(None);
+        // Position window near cursor (determines which screen/space to appear in)
+        position_window_near_cursor(app, &window);
+
+        #[cfg(target_os = "macos")]
+        {
+            let _ = window.with_webview(|webview| unsafe {
+                let raw_window = webview.ns_window();
+                if !raw_window.is_null() {
+                    let ns_window: &NSWindow = &*raw_window.cast();
+                    // Now force window to appear in CURRENT space
+                    ns_window.orderFrontRegardless();
+                    ns_window.makeKeyAndOrderFront(None);
+                }
             });
         }
 
