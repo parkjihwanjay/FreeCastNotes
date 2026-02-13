@@ -55,10 +55,10 @@ class WebViewController: NSViewController, WKScriptMessageHandler, WKNavigationD
     private func loadApp() {
         // Dev mode: load from Vite dev server
         let devURL = "http://localhost:1420"
+        print("[FreeCastNotes] Loading React app from \(devURL)")
 
         if let url = URL(string: devURL) {
-            // Try dev server first, fall back to bundled files
-            let request = URLRequest(url: url, timeoutInterval: 2)
+            let request = URLRequest(url: url, timeoutInterval: 5)
             webView.load(request)
         }
     }
@@ -70,13 +70,18 @@ class WebViewController: NSViewController, WKScriptMessageHandler, WKNavigationD
         let indexPath = (distPath as NSString).appendingPathComponent("index.html")
         let indexURL = URL(fileURLWithPath: indexPath)
         let distURL = URL(fileURLWithPath: distPath)
+        print("[FreeCastNotes] Loading bundled app from \(indexPath)")
         webView.loadFileURL(indexURL, allowingReadAccessTo: distURL)
     }
 
     // If dev server fails, try bundled files
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
-        print("Dev server not available, loading bundled app...")
+        print("[FreeCastNotes] Dev server failed: \(error.localizedDescription)")
         loadBundledApp()
+    }
+
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        print("[FreeCastNotes] Page loaded successfully!")
     }
 
     // MARK: - JS → Swift Bridge

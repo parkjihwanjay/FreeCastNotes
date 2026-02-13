@@ -10,7 +10,7 @@ class MainWindow: NSWindow {
             defer: false
         )
 
-        // Window appearance
+        // Window appearance — transparent so CSS border-radius shows through
         isOpaque = false
         backgroundColor = .clear
         hasShadow = true

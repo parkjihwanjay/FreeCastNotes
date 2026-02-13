@@ -7,6 +7,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var shortcutManager: ShortcutManager!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        print("[FreeCastNotes] App launching...")
+
         mainWindow = MainWindow()
         webViewController = WebViewController(window: mainWindow)
         mainWindow.contentViewController = webViewController
@@ -19,6 +21,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Show window on launch
         mainWindow.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        print("[FreeCastNotes] Window shown. Frame: \(mainWindow.frame)")
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
