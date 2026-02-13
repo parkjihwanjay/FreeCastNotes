@@ -135,8 +135,9 @@ class WebViewController: NSViewController, WKScriptMessageHandler, WKNavigationD
             }
 
         case "startWindowDrag":
-            // Handled by MainWindow.mouseDown
-            break
+            if let event = NSApp.currentEvent {
+                hostWindow?.performDrag(with: event)
+            }
 
         default:
             print("Unknown bridge message: \(type)")

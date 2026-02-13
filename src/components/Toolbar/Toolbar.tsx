@@ -24,6 +24,13 @@ export default function Toolbar({
       className={`relative flex h-12 shrink-0 items-center justify-between border-b border-white/7 bg-[#232323] px-3 transition-opacity duration-180 ${
         chromeActive ? "opacity-100" : "opacity-38"
       }`}
+      onMouseDown={(e) => {
+        // Start drag if clicking on toolbar background or title (not buttons)
+        const target = e.target as HTMLElement;
+        if (target.closest("button") || target.closest("[data-no-drag]")) return;
+        e.preventDefault();
+        window.swiftBridge?.postMessage("startWindowDrag", {});
+      }}
     >
       {/* Traffic Lights */}
       <div

@@ -4,7 +4,7 @@ class MainWindow: NSWindow {
 
     init() {
         super.init(
-            contentRect: NSRect(x: 0, y: 0, width: 650, height: 600),
+            contentRect: NSRect(x: 0, y: 0, width: 650, height: 700),
             styleMask: [.borderless],
             backing: .buffered,
             defer: false
@@ -17,7 +17,7 @@ class MainWindow: NSWindow {
         isMovableByWindowBackground = false
 
         // Size constraints (fixed width, variable height)
-        minSize = NSSize(width: 650, height: 200)
+        minSize = NSSize(width: 650, height: 700)
         maxSize = NSSize(width: 650, height: NSScreen.main?.frame.height ?? 1200)
 
         // Floating behavior
@@ -39,17 +39,5 @@ class MainWindow: NSWindow {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
 
-    // Handle mouse events for custom drag region
-    // The toolbar area (top 48px) acts as a drag handle
-    override func mouseDown(with event: NSEvent) {
-        let location = event.locationInWindow
-        let windowHeight = frame.height
-
-        // If click is in the top 48px (toolbar region), start drag
-        if location.y >= windowHeight - 48 {
-            performDrag(with: event)
-        } else {
-            super.mouseDown(with: event)
-        }
-    }
+    // Window dragging is handled via JS bridge → WebViewController
 }

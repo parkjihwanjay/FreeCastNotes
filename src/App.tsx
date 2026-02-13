@@ -206,9 +206,9 @@ function App() {
     const enforceWindowSize = async () => {
       try {
         const currentSize = await bridge.getWindowSize();
-        const maxH = Math.max(200, Math.floor(window.screen.availHeight * 0.8));
+        const maxH = Math.max(700, Math.floor(window.screen.availHeight * 0.8));
         const nextHeight = Math.max(
-          200,
+          700,
           Math.min(currentSize.height, maxH),
         );
         if (currentSize.width !== 650 || currentSize.height !== nextHeight) {
@@ -241,7 +241,7 @@ function App() {
         : 0;
       const total = 48 + contentH + 24 + formatH + findBarH; // toolbar + content + editor padding + format bar + find bar
       const maxH = window.screen.availHeight * 0.8;
-      const clamped = Math.max(200, Math.min(Math.ceil(total), maxH));
+      const clamped = Math.max(700, Math.min(Math.ceil(total), maxH));
       try {
         await bridge.setWindowSize(650, clamped);
       } catch {
