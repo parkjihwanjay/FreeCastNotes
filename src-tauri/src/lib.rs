@@ -37,9 +37,14 @@ fn configure_macos_overlay_behavior(window: &tauri::WebviewWindow) {
 
         let ns_window: &NSWindow = &*raw_window.cast();
         let mut behavior = ns_window.collectionBehavior();
-        behavior |= NSWindowCollectionBehavior::CanJoinAllSpaces;
+
+        // REMOVED: CanJoinAllSpaces (conflicted with MoveToActiveSpace)
+        behavior &= !NSWindowCollectionBehavior::CanJoinAllSpaces;
+
+        // KEEP: These two work together for Raycast-like behavior
         behavior |= NSWindowCollectionBehavior::MoveToActiveSpace;
         behavior |= NSWindowCollectionBehavior::FullScreenAuxiliary;
+
         ns_window.setCollectionBehavior(behavior);
     });
 }
