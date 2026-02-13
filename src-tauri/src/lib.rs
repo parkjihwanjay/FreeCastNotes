@@ -244,6 +244,22 @@ pub fn run() {
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.set_always_on_top(true);
                 let _ = window.set_visible_on_all_workspaces(true);
+
+                // Set initial collection behavior for fullscreen auxiliary support
+                #[cfg(target_os = "macos")]
+                {
+                    let _ = window.with_webview(|webview| unsafe {
+                        let raw_window = webview.ns_window();
+                        if !raw_window.is_null() {
+                            let ns_window: &NSWindow = &*raw_window.cast();
+                            let mut behavior = ns_window.collectionBehavior();
+                            behavior |= NSWindowCollectionBehavior::FullScreenAuxiliary;
+                            behavior |= NSWindowCollectionBehavior::MoveToActiveSpace;
+                            behavior &= !NSWindowCollectionBehavior::CanJoinAllSpaces;
+                            ns_window.setCollectionBehavior(behavior);
+                        }
+                    });
+                }
             }
 
             // Register configured global shortcut (or fallback)
