@@ -81,7 +81,13 @@ fn position_window_near_cursor(app: &tauri::AppHandle, window: &tauri::WebviewWi
 
 fn show_window_on_top(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
-        // Use aggressive Spotlight-like approach to appear on current space/screen
+        // Hide window first to force re-evaluation of space
+        let _ = window.hide();
+
+        // Position window near cursor (this determines target screen/space)
+        position_window_near_cursor(app, &window);
+
+        // Use VERY aggressive approach to appear in current space
         #[cfg(target_os = "macos")]
         {
             let _ = window.with_webview(|webview| unsafe {
@@ -92,39 +98,22 @@ fn show_window_on_top(app: &tauri::AppHandle) {
 
                 let ns_window: &NSWindow = &*raw_window.cast();
 
-                // CRITICAL: Remove window from all spaces first
-                // This ensures it will appear in the CURRENT space, not stay in old space
-                ns_window.orderOut(None);
+                // Set EXTREME window level (NSScreenSaverWindowLevel = 1000)
+                // This is higher than any normal window, ensures appearing over EVERYTHING
+                ns_window.setLevel(1000);
 
-                // Set window level to NSPopUpMenuWindowLevel (101)
-                // This ensures window appears OVER fullscreen apps, like Spotlight
-                ns_window.setLevel(101);
-
-                // Set ONLY FullScreenAuxiliary - NO CanJoinAllSpaces
-                // Spotlight appears in ONE space at a time, not all spaces
-                let behavior = NSWindowCollectionBehavior::FullScreenAuxiliary;
+                // Set behavior for fullscreen compatibility
+                let behavior = NSWindowCollectionBehavior::FullScreenAuxiliary
+                    | NSWindowCollectionBehavior::FullScreenAllowsTiling;
                 ns_window.setCollectionBehavior(behavior);
-            });
-        }
 
-        // Position window near cursor (determines which screen/space to appear in)
-        position_window_near_cursor(app, &window);
-
-        #[cfg(target_os = "macos")]
-        {
-            let _ = window.with_webview(|webview| unsafe {
-                let raw_window = webview.ns_window();
-                if !raw_window.is_null() {
-                    let ns_window: &NSWindow = &*raw_window.cast();
-                    // Now force window to appear in CURRENT space
-                    ns_window.orderFrontRegardless();
-                    ns_window.makeKeyAndOrderFront(None);
-                }
+                // Make window key and order front REGARDLESS
+                ns_window.orderFrontRegardless();
+                ns_window.makeKeyAndOrderFront(None);
             });
         }
 
         let _ = window.set_always_on_top(true);
-        let _ = window.unminimize();
         let _ = window.show();
         let _ = window.set_focus();
     }
