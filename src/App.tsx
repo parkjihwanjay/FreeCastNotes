@@ -85,6 +85,8 @@ function App() {
     } else if (!noteContent) {
       editor.commands.setContent("");
     }
+    // Auto-focus editor at end when switching notes
+    requestAnimationFrame(() => editor.commands.focus("end"));
   }, [editor, currentNote?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Keep title in sync with saved/current note content
