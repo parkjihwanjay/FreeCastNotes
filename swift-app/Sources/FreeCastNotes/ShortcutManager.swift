@@ -30,6 +30,7 @@ class ShortcutManager {
             return false
         }
 
+        print("[ShortcutManager] Registering: \(shortcut) → key=\(key), modifiers=\(modifiers)")
         hotKey = HotKey(key: key, modifiers: modifiers)
         hotKey?.keyDownHandler = { [weak self] in
             guard let window = self?.window else { return }
@@ -53,14 +54,14 @@ class ShortcutManager {
             switch part.lowercased() {
             case "alt", "option", "opt":
                 modifiers.insert(.option)
-            case "cmd", "command", "meta":
+            case "cmd", "command", "meta", "cmdorctrl":
                 modifiers.insert(.command)
             case "ctrl", "control":
                 modifiers.insert(.control)
             case "shift":
                 modifiers.insert(.shift)
             default:
-                keyString = part.lowercased()
+                keyString = part
             }
         }
 
@@ -68,7 +69,17 @@ class ShortcutManager {
         return (key, modifiers)
     }
 
-    private static func keyFromString(_ str: String) -> Key? {
+    private static func keyFromString(_ raw: String) -> Key? {
+        // Normalize: "KeyN" → "n", "Digit1" → "1", "Space" → "space"
+        var str = raw
+        if str.hasPrefix("Key") && str.count == 4 {
+            str = String(str.last!).lowercased()
+        } else if str.hasPrefix("Digit") && str.count == 6 {
+            str = String(str.last!)
+        } else {
+            str = str.lowercased()
+        }
+
         switch str {
         case "a": return .a
         case "b": return .b
@@ -110,6 +121,28 @@ class ShortcutManager {
         case "escape", "esc": return .escape
         case "return", "enter": return .return
         case "tab": return .tab
+        case "f1": return .f1
+        case "f2": return .f2
+        case "f3": return .f3
+        case "f4": return .f4
+        case "f5": return .f5
+        case "f6": return .f6
+        case "f7": return .f7
+        case "f8": return .f8
+        case "f9": return .f9
+        case "f10": return .f10
+        case "f11": return .f11
+        case "f12": return .f12
+        case "arrowup": return .upArrow
+        case "arrowdown": return .downArrow
+        case "arrowleft": return .leftArrow
+        case "arrowright": return .rightArrow
+        case "backspace": return .delete
+        case "delete": return .forwardDelete
+        case "home": return .home
+        case "end": return .end
+        case "pageup": return .pageUp
+        case "pagedown": return .pageDown
         default: return nil
         }
     }

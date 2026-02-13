@@ -4,8 +4,9 @@ node_modules/
 # Build output
 dist/
 
-# Rust/Tauri
-src-tauri/target/
+# Swift
+swift-app/.build/
+swift-app/.swiftpm/
 
 # IDE
 .vscode/

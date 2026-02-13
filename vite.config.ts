@@ -9,7 +9,7 @@ export default defineConfig({
     port: 1420,
     strictPort: true,
     watch: {
-      ignored: ["**/src-tauri/**", "**/swift-app/**"],
+      ignored: ["**/swift-app/**"],
     },
   },
 });

@@ -1,22 +1,17 @@
 # =============================================================================
 # Makefile - FreeCastNotes
 # =============================================================================
-# Convención: <verbo>[-modificador]
-#   Verbos: dev, build, clean, check, logs, open
-#   Modificadores: -front, -back, -debug
+# Stack: Swift (AppKit + WKWebView) + React + TypeScript + Vite
 # =============================================================================
 
-.PHONY: help dev build build-debug clean clean-front clean-back check check-front \
-        check-back logs open install
+.PHONY: help dev dev-front dev-swift build build-debug clean clean-front \
+        clean-swift check open install kill
 
 C := \033[36m
 G := \033[32m
 Y := \033[33m
 R := \033[31m
 N := \033[0m
-
-CARGO_PATH := $(HOME)/.cargo/bin
-export PATH := $(CARGO_PATH):$(PATH)
 
 .DEFAULT_GOAL := help
 
@@ -25,86 +20,96 @@ help:
 	@echo "$(C)FreeCastNotes - Comandos$(N)"
 	@echo ""
 	@echo "$(G)Desarrollo:$(N)"
-	@echo "  dev           Levanta app en modo desarrollo"
-	@echo "  dev-front     Levanta solo el frontend (Vite)"
-	@echo "  logs          Muestra logs de Rust (RUST_LOG=debug)"
+	@echo "  dev           Levanta Vite + Swift app en modo dev"
+	@echo "  dev-front     Levanta solo el frontend (Vite en :1420)"
+	@echo "  dev-swift     Levanta solo la app Swift (requiere Vite corriendo)"
 	@echo ""
 	@echo "$(G)Build:$(N)"
-	@echo "  build         Build de producción (.app + .dmg)"
-	@echo "  build-debug   Build de debug (más rápido)"
+	@echo "  build         Build de producción (frontend + Swift release)"
+	@echo "  build-debug   Build de debug Swift (más rápido)"
 	@echo ""
 	@echo "$(G)Verificación:$(N)"
-	@echo "  check         Verifica frontend + backend"
-	@echo "  check-front   Type-check del frontend (tsc)"
-	@echo "  check-back    Check del backend (cargo check)"
+	@echo "  check         Type-check del frontend (tsc)"
 	@echo ""
 	@echo "$(G)Mantenimiento:$(N)"
-	@echo "  install       Instala dependencias (npm + cargo)"
-	@echo "  clean         Limpia todo (front + back)"
+	@echo "  install       Instala dependencias (npm + Swift packages)"
+	@echo "  clean         Limpia todo (front + Swift)"
 	@echo "  clean-front   Limpia dist/ y node_modules/.vite"
-	@echo "  clean-back    Limpia target/ de Rust"
-	@echo "  open          Abre el .app generado"
+	@echo "  clean-swift   Limpia .build/ de Swift"
+	@echo "  kill          Mata procesos de FreeCastNotes y Vite (:1420)"
+	@echo "  open          Abre el binario compilado"
 	@echo ""
 
 # === DESARROLLO ===
 
 dev:
 	@echo "$(G)Levantando FreeCastNotes en modo dev...$(N)"
-	@npx tauri dev
+	@echo "$(C)  Vite → http://localhost:1420$(N)"
+	@echo "$(C)  Swift app cargará desde Vite$(N)"
+	@echo ""
+	@npx vite & sleep 2 && cd swift-app && swift run
 
 dev-front:
 	@echo "$(G)Levantando solo frontend (Vite)...$(N)"
 	@npm run dev
 
-logs:
-	@RUST_LOG=debug npx tauri dev 2>&1
+dev-swift:
+	@echo "$(G)Levantando solo Swift app...$(N)"
+	@echo "$(Y)Asegurate de que Vite esté corriendo (make dev-front)$(N)"
+	@cd swift-app && swift run
 
 # === BUILD ===
 
 build:
 	@echo "$(G)Build de producción...$(N)"
-	@npx tauri build
+	@npx tsc --noEmit
+	@npx vite build
+	@cd swift-app && swift build -c release
 	@echo "$(G)Build completado.$(N)"
+	@echo "  Frontend: dist/"
+	@echo "  Swift:    swift-app/.build/release/FreeCastNotes"
 
 build-debug:
 	@echo "$(Y)Build de debug...$(N)"
-	@npx tauri build --debug
+	@cd swift-app && swift build
 	@echo "$(G)Build debug completado.$(N)"
+	@echo "  swift-app/.build/debug/FreeCastNotes"
 
 # === VERIFICACIÓN ===
 
-check: check-front check-back
-	@echo "$(G)Todo OK.$(N)"
-
-check-front:
+check:
 	@echo "$(C)Type-checking frontend...$(N)"
 	@npx tsc --noEmit
-
-check-back:
-	@echo "$(C)Checking backend...$(N)"
-	@cd src-tauri && cargo check
+	@echo "$(G)OK$(N)"
 
 # === MANTENIMIENTO ===
 
 install:
 	@echo "$(C)Instalando dependencias npm...$(N)"
 	@npm install
-	@echo "$(C)Instalando dependencias Cargo...$(N)"
-	@cd src-tauri && cargo fetch
+	@echo "$(C)Resolviendo Swift packages...$(N)"
+	@cd swift-app && swift package resolve
 	@echo "$(G)Dependencias instaladas.$(N)"
 
-clean: clean-front clean-back
+clean: clean-front clean-swift
 	@echo "$(G)Limpieza completa.$(N)"
 
 clean-front:
 	@echo "$(Y)Limpiando frontend...$(N)"
 	@rm -rf dist node_modules/.vite
 
-clean-back:
-	@echo "$(Y)Limpiando backend...$(N)"
-	@cd src-tauri && cargo clean
+clean-swift:
+	@echo "$(Y)Limpiando Swift...$(N)"
+	@cd swift-app && swift package clean
+
+kill:
+	@echo "$(Y)Matando procesos...$(N)"
+	@-pkill -f ".build/debug/FreeCastNotes" 2>/dev/null
+	@-pkill -f ".build/release/FreeCastNotes" 2>/dev/null
+	@-lsof -ti:1420 | xargs kill -9 2>/dev/null
+	@echo "$(G)Procesos terminados.$(N)"
 
 open:
-	@open src-tauri/target/release/bundle/macos/FreeCastNotes.app 2>/dev/null || \
-	 open src-tauri/target/debug/bundle/macos/FreeCastNotes.app 2>/dev/null || \
-	 echo "$(R)No se encontró el .app. Ejecutá 'make build' primero.$(N)"
+	@swift-app/.build/release/FreeCastNotes 2>/dev/null || \
+	 swift-app/.build/debug/FreeCastNotes 2>/dev/null || \
+	 echo "$(R)No se encontró el binario. Ejecutá 'make build' primero.$(N)"
