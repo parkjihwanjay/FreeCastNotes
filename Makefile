@@ -4,7 +4,7 @@
 # Stack: Swift (AppKit + WKWebView) + React + TypeScript + Vite
 # =============================================================================
 
-.PHONY: help dev dev-front dev-swift build build-debug clean clean-front \
+.PHONY: help dev dev-front dev-swift build build-debug bundle dmg clean clean-front \
         clean-swift check open install kill
 
 C := \033[36m
@@ -27,17 +27,19 @@ help:
 	@echo "$(G)Build:$(N)"
 	@echo "  build         Build de producción (frontend + Swift release)"
 	@echo "  build-debug   Build de debug Swift (más rápido)"
+	@echo "  bundle        Genera FreeCastNotes.app en build/"
+	@echo "  dmg           Genera FreeCastNotes.dmg para distribución"
 	@echo ""
 	@echo "$(G)Verificación:$(N)"
 	@echo "  check         Type-check del frontend (tsc)"
 	@echo ""
 	@echo "$(G)Mantenimiento:$(N)"
 	@echo "  install       Instala dependencias (npm + Swift packages)"
-	@echo "  clean         Limpia todo (front + Swift)"
+	@echo "  clean         Limpia todo (front + Swift + build)"
 	@echo "  clean-front   Limpia dist/ y node_modules/.vite"
 	@echo "  clean-swift   Limpia .build/ de Swift"
 	@echo "  kill          Mata procesos de FreeCastNotes y Vite (:1420)"
-	@echo "  open          Abre el binario compilado"
+	@echo "  open          Abre FreeCastNotes.app"
 	@echo ""
 
 # === DESARROLLO ===
@@ -75,6 +77,14 @@ build-debug:
 	@echo "$(G)Build debug completado.$(N)"
 	@echo "  swift-app/.build/debug/FreeCastNotes"
 
+bundle: build
+	@echo "$(G)Creando FreeCastNotes.app...$(N)"
+	@./scripts/bundle-app.sh release
+
+dmg: bundle
+	@echo "$(G)Creando FreeCastNotes.dmg...$(N)"
+	@./scripts/create-dmg.sh
+
 # === VERIFICACIÓN ===
 
 check:
@@ -92,6 +102,7 @@ install:
 	@echo "$(G)Dependencias instaladas.$(N)"
 
 clean: clean-front clean-swift
+	@rm -rf build/
 	@echo "$(G)Limpieza completa.$(N)"
 
 clean-front:
@@ -110,6 +121,5 @@ kill:
 	@echo "$(G)Procesos terminados.$(N)"
 
 open:
-	@swift-app/.build/release/FreeCastNotes 2>/dev/null || \
-	 swift-app/.build/debug/FreeCastNotes 2>/dev/null || \
-	 echo "$(R)No se encontró el binario. Ejecutá 'make build' primero.$(N)"
+	@open build/FreeCastNotes.app 2>/dev/null || \
+	 echo "$(R)No se encontró FreeCastNotes.app. Ejecutá 'make bundle' primero.$(N)"

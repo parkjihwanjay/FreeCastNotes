@@ -12,14 +12,14 @@ class TrayManager {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
 
         if let button = statusItem.button {
-            // Use template image so it adapts to light/dark menu bar
-            if let icon = NSImage(named: "AppIcon") {
-                icon.size = NSSize(width: 16, height: 16)
+            // Load tray icon from bundle Resources or adjacent Resources folder
+            let icon = Self.loadTrayIcon()
+            if let icon = icon {
+                icon.size = NSSize(width: 18, height: 18)
                 icon.isTemplate = true
                 button.image = icon
             } else {
-                // Fallback: use text
-                button.title = "📝"
+                button.title = "FCN"
             }
             button.action = #selector(trayClicked)
             button.target = self
@@ -86,5 +86,30 @@ class TrayManager {
 
     @objc private func quitApp() {
         NSApp.terminate(nil)
+    }
+
+    /// Load tray icon from .app bundle Resources or from dev Resources folder
+    private static func loadTrayIcon() -> NSImage? {
+        // 1. Try .app bundle (production): Contents/Resources/tray-icon@2x.png
+        if let bundlePath = Bundle.main.resourcePath {
+            let retina = (bundlePath as NSString).appendingPathComponent("tray-icon@2x.png")
+            if let img = NSImage(contentsOfFile: retina) { return img }
+            let normal = (bundlePath as NSString).appendingPathComponent("tray-icon.png")
+            if let img = NSImage(contentsOfFile: normal) { return img }
+        }
+
+        // 2. Try relative to binary (dev): ../Resources/tray-icon.png
+        let binaryURL = URL(fileURLWithPath: ProcessInfo.processInfo.arguments[0])
+        let devResources = binaryURL
+            .deletingLastPathComponent() // .build/debug/
+            .deletingLastPathComponent() // .build/
+            .deletingLastPathComponent() // swift-app/
+            .appendingPathComponent("Resources")
+        let devRetina = devResources.appendingPathComponent("tray-icon@2x.png").path
+        if let img = NSImage(contentsOfFile: devRetina) { return img }
+        let devNormal = devResources.appendingPathComponent("tray-icon.png").path
+        if let img = NSImage(contentsOfFile: devNormal) { return img }
+
+        return nil
     }
 }
