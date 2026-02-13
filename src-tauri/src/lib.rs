@@ -27,50 +27,6 @@ fn clamp_f64(value: f64, min: f64, max: f64) -> f64 {
     }
 }
 
-#[cfg(target_os = "macos")]
-fn configure_macos_overlay_behavior(window: &tauri::WebviewWindow) {
-    let _ = window.with_webview(|webview| unsafe {
-        let raw_window = webview.ns_window();
-        if raw_window.is_null() {
-            return;
-        }
-
-        let ns_window: &NSWindow = &*raw_window.cast();
-
-        // Temporarily apply MoveToActiveSpace to move window to current space
-        // This will be restored to CanJoinAllSpaces after window is shown
-        let behavior = NSWindowCollectionBehavior::MoveToActiveSpace
-            | NSWindowCollectionBehavior::FullScreenAuxiliary;
-
-        ns_window.setCollectionBehavior(behavior);
-    });
-}
-
-#[cfg(not(target_os = "macos"))]
-fn configure_macos_overlay_behavior(_window: &tauri::WebviewWindow) {}
-
-#[cfg(target_os = "macos")]
-fn restore_macos_normal_behavior(window: &tauri::WebviewWindow) {
-    let _ = window.with_webview(|webview| unsafe {
-        let raw_window = webview.ns_window();
-        if raw_window.is_null() {
-            return;
-        }
-
-        let ns_window: &NSWindow = &*raw_window.cast();
-
-        // After window moves to active space, switch to CanJoinAllSpaces
-        // so the window follows the user when they switch spaces
-        let behavior = NSWindowCollectionBehavior::CanJoinAllSpaces
-            | NSWindowCollectionBehavior::FullScreenAuxiliary;
-
-        ns_window.setCollectionBehavior(behavior);
-    });
-}
-
-#[cfg(not(target_os = "macos"))]
-fn restore_macos_normal_behavior(_window: &tauri::WebviewWindow) {}
-
 fn position_window_near_cursor(app: &tauri::AppHandle, window: &tauri::WebviewWindow) {
     let Ok(cursor) = app.cursor_position() else {
         return;
@@ -125,32 +81,39 @@ fn position_window_near_cursor(app: &tauri::AppHandle, window: &tauri::WebviewWi
 
 fn show_window_on_top(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
-        let is_visible = window.is_visible().unwrap_or(false);
+        // Position window near cursor FIRST (determines which screen/space to appear in)
+        position_window_near_cursor(app, &window);
 
-        // CRITICAL: Hide window first if visible, so MoveToActiveSpace takes effect
-        // MoveToActiveSpace only works when window transitions from hidden -> shown
-        if is_visible {
-            let _ = window.hide();
+        // Use aggressive Spotlight-like approach to appear on current space/screen
+        #[cfg(target_os = "macos")]
+        {
+            let _ = window.with_webview(|webview| unsafe {
+                let raw_window = webview.ns_window();
+                if raw_window.is_null() {
+                    return;
+                }
+
+                let ns_window: &NSWindow = &*raw_window.cast();
+
+                // Set window level to NSPopUpMenuWindowLevel (101)
+                // This ensures window appears OVER fullscreen apps, like Spotlight
+                ns_window.setLevel(101);
+
+                // Set collection behavior for appearing over fullscreen
+                let behavior = NSWindowCollectionBehavior::CanJoinAllSpaces
+                    | NSWindowCollectionBehavior::FullScreenAuxiliary;
+                ns_window.setCollectionBehavior(behavior);
+
+                // Force window to appear regardless of app activation state
+                ns_window.orderFrontRegardless();
+                ns_window.makeKeyAndOrderFront(None);
+            });
         }
-
-        // Apply MoveToActiveSpace temporarily to move window to current space
-        configure_macos_overlay_behavior(&window);
 
         let _ = window.set_always_on_top(true);
         let _ = window.unminimize();
-        position_window_near_cursor(app, &window);
         let _ = window.show();
         let _ = window.set_focus();
-
-        // After window moves to active space, restore CanJoinAllSpaces
-        // so the window follows the user when they switch spaces
-        let app_handle = app.clone();
-        std::thread::spawn(move || {
-            std::thread::sleep(std::time::Duration::from_millis(150));
-            if let Some(window) = app_handle.get_webview_window("main") {
-                restore_macos_normal_behavior(&window);
-            }
-        });
     }
 }
 
