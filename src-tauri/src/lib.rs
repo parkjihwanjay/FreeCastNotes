@@ -125,6 +125,14 @@ fn position_window_near_cursor(app: &tauri::AppHandle, window: &tauri::WebviewWi
 
 fn show_window_on_top(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
+        let is_visible = window.is_visible().unwrap_or(false);
+
+        // CRITICAL: Hide window first if visible, so MoveToActiveSpace takes effect
+        // MoveToActiveSpace only works when window transitions from hidden -> shown
+        if is_visible {
+            let _ = window.hide();
+        }
+
         // Apply MoveToActiveSpace temporarily to move window to current space
         configure_macos_overlay_behavior(&window);
 
@@ -138,7 +146,7 @@ fn show_window_on_top(app: &tauri::AppHandle) {
         // so the window follows the user when they switch spaces
         let app_handle = app.clone();
         std::thread::spawn(move || {
-            std::thread::sleep(std::time::Duration::from_millis(100));
+            std::thread::sleep(std::time::Duration::from_millis(150));
             if let Some(window) = app_handle.get_webview_window("main") {
                 restore_macos_normal_behavior(&window);
             }
