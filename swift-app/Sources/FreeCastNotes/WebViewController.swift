@@ -144,6 +144,9 @@ class WebViewController: NSViewController, WKScriptMessageHandler, WKNavigationD
                 hostWindow?.performDrag(with: event)
             }
 
+        case "importFile":
+            handleImportFile(callId: callId)
+
         default:
             print("Unknown bridge message: \(type)")
         }
@@ -183,6 +186,34 @@ class WebViewController: NSViewController, WKScriptMessageHandler, WKNavigationD
         }
     }
 
+    // MARK: - File Import
+
+    private func handleImportFile(callId: String?) {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.init(filenameExtension: "md") ?? .plainText, .plainText]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.title = "Import Markdown"
+
+        // Temporarily lower window level so the panel appears in front
+        hostWindow?.level = .normal
+
+        panel.begin { [weak self] response in
+            self?.hostWindow?.level = .floating
+            if response == .OK, let url = panel.url {
+                do {
+                    let content = try String(contentsOf: url, encoding: .utf8)
+                    self?.respond(callId: callId, type: "importFile", result: content)
+                } catch {
+                    print("Import failed: \(error)")
+                    self?.respond(callId: callId, type: "importFile", result: false)
+                }
+            } else {
+                self?.respond(callId: callId, type: "importFile", result: false)
+            }
+        }
+    }
+
     // MARK: - File Export
 
     private func handleExportFile(content: String, extension ext: String, filterName: String, callId: String?) {
@@ -191,7 +222,11 @@ class WebViewController: NSViewController, WKScriptMessageHandler, WKNavigationD
         panel.nameFieldStringValue = "note.\(ext)"
         panel.title = "Export Note"
 
+        // Temporarily lower window level so the panel appears in front
+        hostWindow?.level = .normal
+
         panel.begin { [weak self] response in
+            self?.hostWindow?.level = .floating
             if response == .OK, let url = panel.url {
                 do {
                     try content.write(to: url, atomically: true, encoding: .utf8)
@@ -220,13 +255,15 @@ class WebViewController: NSViewController, WKScriptMessageHandler, WKNavigationD
                 });
             },
 
-            call: function(type, payload) {
+            call: function(type, payload, timeout) {
                 return new Promise(function(resolve) {
-                    const id = crypto.randomUUID();
-                    const eventName = 'swift-response-' + type;
+                    var resolved = false;
+                    var id = crypto.randomUUID();
+                    var eventName = 'swift-response-' + type;
 
                     function handler(e) {
                         if (e.detail && e.detail.id === id) {
+                            resolved = true;
                             window.removeEventListener(eventName, handler);
                             resolve(e.detail.result);
                         }
@@ -238,11 +275,12 @@ class WebViewController: NSViewController, WKScriptMessageHandler, WKNavigationD
                         payload: Object.assign({}, payload || {}, { _callId: id })
                     });
 
-                    // Timeout after 5 seconds
                     setTimeout(function() {
-                        window.removeEventListener(eventName, handler);
-                        resolve(null);
-                    }, 5000);
+                        if (!resolved) {
+                            window.removeEventListener(eventName, handler);
+                            resolve(null);
+                        }
+                    }, timeout || 5000);
                 });
             }
         };

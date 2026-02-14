@@ -23,6 +23,7 @@ export function buildActions(
   callbacks: {
     onNewNote: () => void;
     onBrowseNotes: () => void;
+    onImportFile: () => void;
     onClose: () => void;
   },
 ): Action[] {
@@ -92,6 +93,16 @@ export function buildActions(
         await store.deleteNote(currentNote.id);
         showToast("Note deleted");
         callbacks.onClose();
+      },
+    },
+    {
+      id: "import-markdown",
+      label: "Import Markdown",
+      icon: "📥",
+      category: "notes",
+      execute: async () => {
+        callbacks.onClose();
+        await callbacks.onImportFile();
       },
     },
 

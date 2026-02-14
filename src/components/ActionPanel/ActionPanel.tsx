@@ -8,6 +8,7 @@ interface ActionPanelProps {
   editor: Editor | null;
   onNewNote: () => void;
   onBrowseNotes: () => void;
+  onImportFile: () => void;
 }
 
 export default function ActionPanel({
@@ -16,6 +17,7 @@ export default function ActionPanel({
   editor,
   onNewNote,
   onBrowseNotes,
+  onImportFile,
 }: ActionPanelProps) {
   const [search, setSearch] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -24,8 +26,8 @@ export default function ActionPanel({
   const listRef = useRef<HTMLDivElement>(null);
 
   const actions = useMemo(
-    () => buildActions(editor, { onNewNote, onBrowseNotes, onClose }),
-    [editor, onNewNote, onBrowseNotes, onClose],
+    () => buildActions(editor, { onNewNote, onBrowseNotes, onImportFile, onClose }),
+    [editor, onNewNote, onBrowseNotes, onImportFile, onClose],
   );
 
   const filtered = useMemo(() => {
@@ -59,8 +61,10 @@ export default function ActionPanel({
   // Scroll selected item into view
   useEffect(() => {
     if (!listRef.current) return;
-    const selected = listRef.current.children[selectedIndex] as HTMLElement;
-    selected?.scrollIntoView({ block: "nearest" });
+    const el = listRef.current.querySelector(
+      `[data-action-index="${selectedIndex}"]`,
+    ) as HTMLElement;
+    el?.scrollIntoView({ block: "nearest" });
   }, [selectedIndex]);
 
   // Keyboard navigation
@@ -165,6 +169,7 @@ export default function ActionPanel({
                       <ActionItem
                         key={action.id}
                         action={action}
+                        index={idx}
                         selected={selectedIndex === idx}
                         onHover={() => setSelectedIndex(idx)}
                         onExecute={() => {
@@ -187,6 +192,7 @@ export default function ActionPanel({
               <ActionItem
                 key={action.id}
                 action={action}
+                index={i}
                 selected={selectedIndex === i}
                 onHover={() => setSelectedIndex(i)}
                 onExecute={() => {
@@ -221,14 +227,17 @@ function ActionItem({
   selected,
   onHover,
   onExecute,
+  index,
 }: {
   action: Action;
   selected: boolean;
   onHover: () => void;
   onExecute: () => void;
+  index: number;
 }) {
   return (
     <button
+      data-action-index={index}
       onMouseEnter={onHover}
       onClick={() => {
         if (!action.disabled) onExecute();

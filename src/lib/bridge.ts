@@ -10,6 +10,7 @@ declare global {
       call: (
         type: string,
         payload?: Record<string, unknown>,
+        timeout?: number,
       ) => Promise<unknown>;
     };
   }
@@ -95,9 +96,19 @@ export const bridge = {
         content,
         extension: extension,
         filterName,
-      }) as Promise<boolean>;
+      }, 120000) as Promise<boolean>;
     }
     return Promise.resolve(false);
+  },
+
+  // File import (native open dialog)
+  importFile: (): Promise<string | null> => {
+    if (isSwiftAvailable()) {
+      return window.swiftBridge!.call("importFile", {}, 120000).then((result) =>
+        typeof result === "string" ? result : null,
+      );
+    }
+    return Promise.resolve(null);
   },
 
   // Event listeners (Swift → React via CustomEvent)

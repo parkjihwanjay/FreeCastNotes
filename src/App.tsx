@@ -12,6 +12,7 @@ import { useAppEditor } from "./hooks/useEditor";
 import { useAppStore } from "./stores/appStore";
 import { extractTitle } from "./lib/utils";
 import { copyAsMarkdown } from "./lib/export";
+import { markdownToHtml } from "./lib/import";
 
 function App() {
   const editor = useAppEditor();
@@ -40,6 +41,7 @@ function App() {
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const currentNoteIdRef = useRef<string | null>(null);
+  const importContentRef = useRef<string | null>(null);
 
   // Track current note ID without re-triggering editor effects
   useEffect(() => {
@@ -73,6 +75,16 @@ function App() {
     // Clear search when switching notes
     editor.commands.clearSearch();
     setFindBarOpen(false);
+
+    // If we have imported HTML content, use it instead of the note's stored content
+    if (importContentRef.current) {
+      const html = importContentRef.current;
+      importContentRef.current = null;
+      editor.commands.setContent(html);
+      requestAnimationFrame(() => editor.commands.focus("end"));
+      return;
+    }
+
     const currentContent = JSON.stringify(editor.getJSON());
     const noteContent = currentNote.content || "";
     if (noteContent && noteContent !== currentContent) {
@@ -148,6 +160,14 @@ function App() {
       console.error("Failed to refresh notes before opening browser", error);
     });
   }, [loadNotes]);
+
+  const handleImportFile = useCallback(async () => {
+    const markdown = await bridge.importFile();
+    if (!markdown) return;
+    importContentRef.current = markdownToHtml(markdown);
+    await createNote();
+    showToast("Note imported");
+  }, [createNote, showToast]);
 
   const saveGlobalShortcut = useCallback(
     async (shortcut: string) => {
@@ -496,6 +516,7 @@ function App() {
           createNoteAndFocus(true);
         }}
         onBrowseNotes={openBrowse}
+        onImportFile={handleImportFile}
       />
       <ShortcutSettings
         open={shortcutSettingsOpen}
