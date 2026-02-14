@@ -14,10 +14,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # GitHub Actions macOS runner labels change over time; keep these explicit.
+          # See: https://github.com/actions/runner-images#available-images
           - arch: arm64
-            runner: macos-latest
+            runner: macos-15
           - arch: x86_64
-            runner: macos-13
+            runner: macos-15-intel
 
     runs-on: ${{ matrix.runner }}
 
