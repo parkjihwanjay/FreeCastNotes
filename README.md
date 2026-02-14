@@ -15,12 +15,14 @@ Raycast Notes is a beautifully designed scratchpad. But it's limited to **5 note
 - **Instant access** — Global hotkey (`Option+N`) to show/hide from anywhere
 - **Always on top** — Stays above other windows while you work
 - **Space-aware** — Always appears on your *current* macOS Space (Spotlight-like)
-- **Rich text editing** — Headings, bold, italic, code blocks, lists, task lists, blockquotes, links
+- **Rich text editing** — Headings, bold, italic, code blocks, lists, task lists, blockquotes, links, images
 - **Unlimited notes** — No artificial limits, all stored locally
 - **Command palette** (`Cmd+K`) — Search and execute any action
 - **Browse notes** (`Cmd+P`) — Quick switcher with fuzzy search
 - **Find & replace** (`Cmd+F`) — Search within notes with match highlighting
 - **Pin notes** — Pin important notes to the top, access with `Cmd+1-9`
+- **Images** — Insert via format bar, paste, or drag & drop; resize with corner handles
+- **Import** — Import Markdown files as new notes
 - **Export** — Copy as Markdown, HTML, or plain text; export to file
 - **System tray** — Menu bar icon with quick actions
 - **Auto-sizing window** — Window grows/shrinks with content
