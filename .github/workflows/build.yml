@@ -9,12 +9,14 @@ on:
 
 jobs:
   build:
+    name: Build DMG (${{ matrix.arch }})
     strategy:
+      fail-fast: false
       matrix:
         include:
-          - target: aarch64-apple-darwin
+          - arch: arm64
             runner: macos-latest
-          - target: x86_64-apple-darwin
+          - arch: x86_64
             runner: macos-13
 
     runs-on: ${{ matrix.runner }}
@@ -28,29 +30,26 @@ jobs:
           node-version: 20
           cache: npm
 
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
-
-      - name: Rust cache
-        uses: swatinem/rust-cache@v2
-        with:
-          workspaces: src-tauri
-
-      - name: Install dependencies
+      - name: Install JS dependencies
         run: npm ci
 
-      - name: Build
-        run: npx tauri build --target ${{ matrix.target }}
+      - name: Resolve Swift packages
+        run: cd swift-app && swift package resolve
 
-      - name: Upload .dmg artifact
+      - name: Build DMG
+        run: make dmg
+
+      - name: Rename DMG
+        run: mv build/FreeCastNotes.dmg build/FreeCastNotes-${{ matrix.arch }}.dmg
+
+      - name: Upload DMG artifact
         uses: actions/upload-artifact@v4
         with:
-          name: FreeCastNotes-${{ matrix.target }}
-          path: src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
+          name: FreeCastNotes-${{ matrix.arch }}
+          path: build/FreeCastNotes-${{ matrix.arch }}.dmg
 
   release:
+    name: GitHub Release
     if: startsWith(github.ref, 'refs/tags/v')
     needs: build
     runs-on: ubuntu-latest

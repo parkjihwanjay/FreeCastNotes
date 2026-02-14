@@ -12,7 +12,7 @@ Raycast Notes is a beautifully designed scratchpad. But it's limited to **5 note
 
 - **Instant access** — Global hotkey (`Option+N`) to show/hide from anywhere
 - **Always on top** — Stays above other windows while you work
-- **Visible on all Spaces** — Appears on your current macOS Space, every time
+- **Space-aware** — Always appears on your *current* macOS Space (Spotlight-like)
 - **Rich text editing** — Headings, bold, italic, code blocks, lists, task lists, blockquotes, links
 - **Unlimited notes** — No artificial limits, all stored locally
 - **Command palette** (`Cmd+K`) — Search and execute any action
@@ -29,9 +29,11 @@ Raycast Notes is a beautifully designed scratchpad. But it's limited to **5 note
 
 ### Download
 
-Download the latest `FreeCastNotes.dmg` from the [Releases](https://github.com/nicobistolfi/FreeCastNotes/releases) page.
+Download the latest `FreeCastNotes-*.dmg` from the [Releases](https://github.com/gastonmichelotti/FreeCastNotes/releases) page.
 
 Open the DMG and drag **FreeCastNotes** to your **Applications** folder.
+
+> Note: the app is currently **not notarized/signed**, so macOS Gatekeeper may block the first launch. If that happens: right‑click the app → **Open** → **Open**.
 
 ### Build from source
 
@@ -42,7 +44,7 @@ Open the DMG and drag **FreeCastNotes** to your **Applications** folder.
 
 ```bash
 # Clone the repo
-git clone https://github.com/nicobistolfi/FreeCastNotes.git
+git clone https://github.com/gastonmichelotti/FreeCastNotes.git
 cd FreeCastNotes
 
 # Install dependencies
@@ -129,7 +131,7 @@ The `.app` and `.dmg` will be in the `build/` directory.
 
 FreeCastNotes uses a hybrid architecture: a native Swift shell provides the macOS window management, system tray, and global shortcuts, while the UI is a React app running inside a `WKWebView`. Communication between Swift and React happens through a bidirectional JavaScript bridge.
 
-This approach gives us the best of both worlds: native macOS APIs (like `NSWindowCollectionBehavior.canJoinAllSpaces` for multi-Space support) with a modern, fast UI framework.
+This approach gives us the best of both worlds: native macOS windowing behavior (Spotlight-like Space handling, tray, global hotkeys) with a modern, fast UI framework.
 
 ## Contributing
 

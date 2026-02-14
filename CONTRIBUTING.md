@@ -1,30 +1,30 @@
 # Contributing to FreeCastNotes
 
-Thank you for your interest in contributing! This guide will help you get started.
+Thanks for your interest in contributing!
 
 ## Reporting Bugs
 
-1. Check [existing issues](https://github.com/nicobistolfi/FreeCastNotes/issues) to avoid duplicates
+1. Check existing issues to avoid duplicates:
+   - https://github.com/gastonmichelotti/FreeCastNotes/issues
 2. Open a new issue with:
    - macOS version
-   - FreeCastNotes version
+   - FreeCastNotes version (from the app)
    - Steps to reproduce
    - Expected vs actual behavior
-   - Screenshots if applicable
+   - Screenshots / screen recording if helpful
 
 ## Proposing Features
 
-1. Open an issue with the `feature` label
-2. Describe the use case and expected behavior
-3. If possible, reference how Raycast Notes or similar apps handle it
+1. Open an issue describing the use case and expected behavior
+2. If relevant, reference how Raycast Notes (or similar apps) behave
 
 ## Development Setup
 
 ### Prerequisites
 
-- **Node.js** 18+ ([nodejs.org](https://nodejs.org/))
-- **Rust** latest stable ([rustup.rs](https://rustup.rs/))
-- **macOS** 11+ (Big Sur or later)
+- **macOS 13+**
+- **Node.js 18+**
+- **Xcode** (or Xcode Command Line Tools)
 
 ### Getting Started
 
@@ -34,59 +34,33 @@ git clone https://github.com/YOUR_USERNAME/FreeCastNotes.git
 cd FreeCastNotes
 
 # Install dependencies
-npm install
+make install
 
-# Start development server
-npx tauri dev
+# Run in development (Vite + Swift)
+make dev
 ```
 
-This opens the app in development mode with hot-reload for the frontend.
-
-### Project Structure
-
-```
-FreeCastNotes/
-  src/                    # React frontend
-    components/           # UI components
-    hooks/                # Custom React hooks
-    lib/                  # Utilities (db, export, utils)
-    stores/               # Zustand state management
-    styles/               # Global CSS
-  src-tauri/              # Rust backend
-    src/lib.rs            # Tauri app setup
-    Cargo.toml            # Rust dependencies
-    tauri.conf.json       # Tauri configuration
-    capabilities/         # Tauri permission capabilities
-```
-
-### Build for Production
+### Useful commands
 
 ```bash
-npx tauri build
+make check   # type-check frontend
+make build   # production build (frontend + Swift release)
+make bundle  # create FreeCastNotes.app in build/
+make dmg     # create FreeCastNotes.dmg in build/
 ```
-
-Output is in `src-tauri/target/release/bundle/`.
-
-## Coding Guidelines
-
-- **TypeScript** for all frontend code — no `any` unless absolutely necessary
-- **Tailwind CSS** for styling — avoid custom CSS when Tailwind classes suffice
-- **Functional components** with hooks — no class components
-- **Zustand** for shared state — keep component-local state in `useState`
-- Keep files focused and small — split large components
-- No unnecessary dependencies — prefer built-in APIs
 
 ## Pull Request Process
 
 1. Fork the repo and create a branch from `main`
-2. Make your changes with clear, focused commits
-3. Ensure `npx tauri build` succeeds
+2. Make focused commits with clear messages
+3. Ensure:
+   - `make check` passes
+   - `make dmg` works locally
 4. Open a PR with:
-   - Description of what changed and why
+   - What changed and why
    - Screenshots for UI changes
    - Link to related issue (if any)
-5. Wait for review — maintainers may request changes
 
 ## Code of Conduct
 
-Be respectful and constructive. We're all here to build something great.
+Be respectful and constructive. We're all here to build something useful.
