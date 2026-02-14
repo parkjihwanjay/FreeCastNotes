@@ -243,6 +243,15 @@ export default function FormatBar({
           tooltip="Task list"
           shortcut={["⇧", "⌘", "9"]}
         />
+        <FormatBtn
+          icon={<BlockquoteIcon />}
+          active={isActive("blockquote")}
+          onClick={() =>
+            run(() => editor.chain().focus().toggleBlockquote().run())
+          }
+          tooltip="Blockquote"
+          shortcut={["⇧", "⌘", "B"]}
+        />
       </div>
 
       {/* Close button */}
@@ -469,6 +478,25 @@ function TaskListIcon() {
       <path d="M8 5h8" />
       <path d="M8 10h8" />
       <path d="M8 15h8" />
+    </svg>
+  );
+}
+
+function BlockquoteIcon() {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      className="h-[17px] w-[17px]"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M4 4v12" />
+      <path d="M8 6h8" />
+      <path d="M8 10h6" />
+      <path d="M8 14h8" />
     </svg>
   );
 }
