@@ -135,6 +135,15 @@ FreeCastNotes uses a hybrid architecture: a native Swift shell provides the macO
 
 This approach gives us the best of both worlds: native macOS windowing behavior (Spotlight-like Space handling, tray, global hotkeys) with a modern, fast UI framework.
 
+## Support
+
+If FreeCastNotes saves you time, consider supporting development (pay what you want, suggested **$3**):
+
+- Gumroad tip jar: https://michelotti2.gumroad.com/l/freecast
+
+Downloads are always free on GitHub Releases:
+- https://github.com/gastonmichelotti/FreeCastNotes/releases
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to contribute.
