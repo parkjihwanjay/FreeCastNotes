@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from "react";
 import type { Editor } from "@tiptap/react";
+import { compressImage, validateImageFile } from "../../lib/imageUtils";
 
 interface FormatBarProps {
   editor: Editor | null;
@@ -19,6 +20,7 @@ export default function FormatBar({
   const [visible, setVisible] = useState(true);
   const [headingOpen, setHeadingOpen] = useState(false);
   const headingMenuRef = useRef<HTMLDivElement | null>(null);
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
 
   // Toggle with ⌥⌘,
   useEffect(() => {
@@ -251,6 +253,35 @@ export default function FormatBar({
           }
           tooltip="Blockquote"
           shortcut={["⇧", "⌘", "B"]}
+        />
+
+        <Separator />
+
+        {/* Image insert */}
+        <FormatBtn
+          icon={<ImageIcon />}
+          active={false}
+          onClick={() => imageInputRef.current?.click()}
+          tooltip="Insert image"
+        />
+        <input
+          ref={imageInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={async (e) => {
+            const file = e.target.files?.[0];
+            if (!file || !editor) return;
+            const error = validateImageFile(file);
+            if (error) {
+              console.warn("Image rejected:", error);
+              return;
+            }
+            const src = await compressImage(file);
+            editor.chain().focus().setImage({ src }).run();
+            // Reset so the same file can be selected again
+            e.target.value = "";
+          }}
         />
       </div>
 
@@ -497,6 +528,24 @@ function BlockquoteIcon() {
       <path d="M8 6h8" />
       <path d="M8 10h6" />
       <path d="M8 14h8" />
+    </svg>
+  );
+}
+
+function ImageIcon() {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      className="h-[17px] w-[17px]"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="2.5" y="3.5" width="15" height="13" rx="2.5" />
+      <circle cx="7" cy="8" r="1.5" />
+      <path d="M17.5 13.5 13 9l-6 6" />
     </svg>
   );
 }
