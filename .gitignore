@@ -3,9 +3,11 @@ node_modules/
 
 # Build output
 dist/
+build/
 
-# Rust/Tauri
-src-tauri/target/
+# Swift
+swift-app/.build/
+swift-app/.swiftpm/
 
 # IDE
 .vscode/
@@ -21,3 +23,5 @@ Thumbs.db
 # Environment
 .env
 .env.local
+
+.fake

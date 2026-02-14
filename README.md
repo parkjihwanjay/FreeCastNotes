@@ -12,6 +12,7 @@ Raycast Notes is a beautifully designed scratchpad. But it's limited to **5 note
 
 - **Instant access** — Global hotkey (`Option+N`) to show/hide from anywhere
 - **Always on top** — Stays above other windows while you work
+- **Visible on all Spaces** — Appears on your current macOS Space, every time
 - **Rich text editing** — Headings, bold, italic, code blocks, lists, task lists, blockquotes, links
 - **Unlimited notes** — No artificial limits, all stored locally
 - **Command palette** (`Cmd+K`) — Search and execute any action
@@ -19,7 +20,6 @@ Raycast Notes is a beautifully designed scratchpad. But it's limited to **5 note
 - **Find & replace** (`Cmd+F`) — Search within notes with match highlighting
 - **Pin notes** — Pin important notes to the top, access with `Cmd+1-9`
 - **Export** — Copy as Markdown, HTML, or plain text; export to file
-- **Deeplinks** — `freecastnotes://note/{id}` to open specific notes
 - **System tray** — Menu bar icon with quick actions
 - **Auto-sizing window** — Window grows/shrinks with content
 - **Dark theme** — Native macOS dark appearance
@@ -29,14 +29,16 @@ Raycast Notes is a beautifully designed scratchpad. But it's limited to **5 note
 
 ### Download
 
-Download the latest `.dmg` from the [Releases](https://github.com/nicobistolfi/FreeCastNotes/releases) page.
+Download the latest `FreeCastNotes.dmg` from the [Releases](https://github.com/nicobistolfi/FreeCastNotes/releases) page.
+
+Open the DMG and drag **FreeCastNotes** to your **Applications** folder.
 
 ### Build from source
 
 **Prerequisites:**
 - [Node.js](https://nodejs.org/) 18+
-- [Rust](https://rustup.rs/) (latest stable)
-- macOS 11+
+- Swift 5.9+ (included with Xcode or Xcode Command Line Tools)
+- macOS 13+
 
 ```bash
 # Clone the repo
@@ -44,23 +46,42 @@ git clone https://github.com/nicobistolfi/FreeCastNotes.git
 cd FreeCastNotes
 
 # Install dependencies
-npm install
+make install
 
-# Run in development
-npx tauri dev
+# Run in development (Vite + Swift)
+make dev
 
-# Build for production
-npx tauri build
+# Build .app bundle
+make bundle
+
+# Build .dmg for distribution
+make dmg
 ```
 
-The built `.app` and `.dmg` will be in `src-tauri/target/release/bundle/`.
+The `.app` and `.dmg` will be in the `build/` directory.
+
+### Makefile commands
+
+| Command | Description |
+|---------|-------------|
+| `make dev` | Run in dev mode (Vite HMR + Swift) |
+| `make dev-front` | Run only the frontend (Vite on :1420) |
+| `make dev-swift` | Run only the Swift app (needs Vite running) |
+| `make build` | Production build (frontend + Swift release) |
+| `make bundle` | Generate `FreeCastNotes.app` |
+| `make dmg` | Generate `FreeCastNotes.dmg` |
+| `make check` | Type-check frontend |
+| `make install` | Install npm + Swift dependencies |
+| `make clean` | Clean all build artifacts |
+| `make kill` | Kill running processes |
+| `make open` | Launch the built app |
 
 ## Keyboard Shortcuts
 
 ### General
 | Shortcut | Action |
 |----------|--------|
-| `Option+N` | Show/Hide window (global) |
+| `Option+N` | Show/Hide window (global, customizable) |
 | `Cmd+K` | Open command palette |
 | `Cmd+P` | Browse notes |
 | `Cmd+F` | Find in note |
@@ -78,7 +99,6 @@ The built `.app` and `.dmg` will be in `src-tauri/target/release/bundle/`.
 |----------|--------|
 | `Shift+Cmd+C` | Copy as Markdown |
 | `Shift+Cmd+E` | Export to file |
-| `Shift+Cmd+D` | Copy deeplink |
 
 ### Formatting
 | Shortcut | Action |
@@ -96,13 +116,20 @@ The built `.app` and `.dmg` will be in `src-tauri/target/release/bundle/`.
 
 ## Tech Stack
 
-- **[Tauri v2](https://tauri.app/)** — Lightweight native app framework
-- **[React 19](https://react.dev/)** — UI library
+- **Swift + AppKit** — Native macOS shell with `NSWindow` and `WKWebView`
+- **[React 19](https://react.dev/)** — UI rendered in WKWebView
 - **[TipTap](https://tiptap.dev/)** — Rich text editor (ProseMirror-based)
 - **[TypeScript](https://www.typescriptlang.org/)** — Type safety
 - **[Tailwind CSS v4](https://tailwindcss.com/)** — Utility-first styling
 - **[Zustand](https://zustand.docs.pmnd.rs/)** — State management
-- **SQLite** — Local persistence (via tauri-plugin-sql)
+- **[Vite](https://vite.dev/)** — Frontend build tool
+- **[HotKey](https://github.com/soffes/HotKey)** — Global keyboard shortcuts
+
+### Architecture
+
+FreeCastNotes uses a hybrid architecture: a native Swift shell provides the macOS window management, system tray, and global shortcuts, while the UI is a React app running inside a `WKWebView`. Communication between Swift and React happens through a bidirectional JavaScript bridge.
+
+This approach gives us the best of both worlds: native macOS APIs (like `NSWindowCollectionBehavior.canJoinAllSpaces` for multi-Space support) with a modern, fast UI framework.
 
 ## Contributing
 

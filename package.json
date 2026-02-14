@@ -1,21 +1,18 @@
 {
   "name": "freecastnotes",
   "version": "1.0.0",
-  "description": "",
+  "description": "Open source Raycast Notes clone for macOS",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:swift": "concurrently \"vite\" \"cd swift-app && swift run\"",
     "build": "tsc && vite build",
-    "preview": "vite preview",
-    "tauri": "tauri"
+    "build:swift": "tsc && vite build && cd swift-app && swift build -c release",
+    "preview": "vite preview"
   },
   "license": "MIT",
   "dependencies": {
-    "@tauri-apps/api": "^2.10.1",
-    "@tauri-apps/plugin-dialog": "^2.6.0",
-    "@tauri-apps/plugin-fs": "^2.4.5",
-    "@tauri-apps/plugin-sql": "^2.3.2",
     "@tiptap/extension-code-block": "^3.19.0",
     "@tiptap/extension-horizontal-rule": "^3.19.0",
     "@tiptap/extension-link": "^3.19.0",
@@ -32,7 +29,6 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.18",
-    "@tauri-apps/cli": "^2.10.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.4",

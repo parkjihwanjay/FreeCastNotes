@@ -1,7 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { getCurrentWindow } from "@tauri-apps/api/window";
-
-const appWindow = getCurrentWindow();
+import { bridge } from "../../lib/bridge";
 
 interface ToolbarProps {
   title?: string;
@@ -22,10 +20,17 @@ export default function Toolbar({
 
   return (
     <div
-      data-tauri-drag-region
+      data-drag-region
       className={`relative flex h-12 shrink-0 items-center justify-between border-b border-white/7 bg-[#232323] px-3 transition-opacity duration-180 ${
         chromeActive ? "opacity-100" : "opacity-38"
       }`}
+      onMouseDown={(e) => {
+        // Start drag if clicking on toolbar background or title (not buttons)
+        const target = e.target as HTMLElement;
+        if (target.closest("button") || target.closest("[data-no-drag]")) return;
+        e.preventDefault();
+        window.swiftBridge?.postMessage("startWindowDrag", {});
+      }}
     >
       {/* Traffic Lights */}
       <div
@@ -37,7 +42,7 @@ export default function Toolbar({
           color="#FF5F57"
           hoverIcon="×"
           hovering={hovering}
-          onClick={() => appWindow.hide()}
+          onClick={() => bridge.hideWindow()}
         />
         <TrafficLight
           color="#595A5F"
@@ -57,7 +62,7 @@ export default function Toolbar({
 
       {/* Title */}
       <span
-        data-tauri-drag-region
+        data-drag-region
         className="pointer-events-none absolute left-1/2 -translate-x-1/2 text-sm font-semibold tracking-[0.01em] text-[#E5E5E7]/58"
       >
         {title}
