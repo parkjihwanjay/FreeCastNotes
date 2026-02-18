@@ -39,7 +39,7 @@ enum WindowPositioner {
 
     /// Toggle window visibility
     static func toggle(_ window: NSWindow) {
-        if window.isVisible && window.isKeyWindow {
+        if window.isVisible {
             window.orderOut(nil)
         } else {
             showOnTop(window)

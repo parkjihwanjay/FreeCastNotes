@@ -377,8 +377,8 @@ function App() {
           return;
         }
 
-        // Esc — Close browse view first, then action panel, otherwise hide window
-        if (key === "escape") {
+        // Esc / ⌘W — Close browse view first, then action panel, otherwise hide window
+        if (key === "escape" || (mod && !e.shiftKey && !e.altKey && (key === "w" || e.code === "KeyW"))) {
           e.preventDefault();
           if (browseOpen) {
             setBrowseOpen(false);
