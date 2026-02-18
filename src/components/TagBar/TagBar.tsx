@@ -1,7 +1,12 @@
 import { useRef, useState } from "react";
 import { useAppStore } from "../../stores/appStore";
 
-export default function TagBar() {
+interface TagBarProps {
+  /** Inline in toolbar: compact, single row */
+  inline?: boolean;
+}
+
+export default function TagBar({ inline = false }: TagBarProps) {
   const { currentNote, updateNoteTags } = useAppStore();
   const [inputVisible, setInputVisible] = useState(false);
   const [inputValue, setInputValue] = useState("");
@@ -46,7 +51,9 @@ export default function TagBar() {
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5 px-6 pb-2 pt-1">
+    <div
+      className={`flex items-center gap-1.5 ${inline ? "flex-nowrap py-0 px-0" : "flex-wrap px-6 pb-2 pt-1"}`}
+    >
       {tags.map((tag) => (
         <span
           key={tag}

@@ -30,79 +30,69 @@ export default function Toolbar({
         chromeActive ? "opacity-100" : "opacity-38"
       }`}
     >
-    <div
-      data-drag-region
-      className="relative flex h-12 items-center justify-between px-3"
-      onMouseDown={(e) => {
-        // Start drag if clicking on toolbar background or title (not buttons)
-        const target = e.target as HTMLElement;
-        if (target.closest("button") || target.closest("[data-no-drag]")) return;
-        e.preventDefault();
-        window.swiftBridge?.postMessage("startWindowDrag", {});
-      }}
-    >
-      {/* Traffic Lights */}
       <div
-        className="relative z-10 flex items-center gap-2"
-        onMouseEnter={() => setHovering(true)}
-        onMouseLeave={() => setHovering(false)}
-      >
-        <TrafficLight
-          color="#FF5F57"
-          hoverIcon="×"
-          hovering={hovering}
-          onClick={() => bridge.hideWindow()}
-        />
-        <TrafficLight
-          color="#595A5F"
-          hoverIcon="−"
-          hovering={hovering}
-          onClick={() => {}}
-          disabled
-        />
-        <TrafficLight
-          color="#595A5F"
-          hoverIcon="+"
-          hovering={hovering}
-          onClick={() => {}}
-          disabled
-        />
-      </div>
-
-      {/* Title */}
-      <span
         data-drag-region
-        className="pointer-events-none absolute left-1/2 -translate-x-1/2 text-sm font-semibold tracking-[0.01em] text-[#E5E5E7]/58"
+        className="relative flex h-12 items-center justify-between px-3"
+        onMouseDown={(e) => {
+          const target = e.target as HTMLElement;
+          if (target.closest("button") || target.closest("[data-no-drag]")) return;
+          e.preventDefault();
+          window.swiftBridge?.postMessage("startWindowDrag", {});
+        }}
       >
-        {title}
-      </span>
+        {/* Close button */}
+        <div
+          className="relative z-10 flex items-center"
+          onMouseEnter={() => setHovering(true)}
+          onMouseLeave={() => setHovering(false)}
+        >
+          <TrafficLight
+            color="#FF5F57"
+            hoverIcon="×"
+            hovering={hovering}
+            onClick={() => bridge.hideWindow()}
+          />
+        </div>
 
-      {/* Right buttons */}
-      <div className="relative z-10 flex items-center gap-0.5">
-        <ToolbarButton
-          icon={<TagIcon />}
-          onClick={() => onToggleTagBar?.()}
-          title="Toggle Tags"
-          active={tagBarVisible}
-        />
-        <ToolbarButton
-          icon={<CommandIcon />}
-          onClick={() => onActionPanel?.()}
-          title="Action Panel (⌘K)"
-        />
-        <ToolbarButton
-          icon={<BrowseIcon />}
-          onClick={() => onBrowse?.()}
-          title="Browse Notes (⌘P)"
-        />
-        <ToolbarButton
-          icon={<PlusIcon />}
-          onClick={() => onNewNote?.()}
-          title="New Note (⌘N)"
-        />
+        {/* Title + Tags as one centered unit (full window) */}
+        <div
+          data-drag-region
+          className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2"
+        >
+          <span
+            data-drag-region
+            className="pointer-events-none text-sm font-semibold tracking-[0.01em] text-[#E5E5E7]/58"
+          >
+            {title}
+          </span>
+          {children}
+        </div>
+
+        {/* Right buttons */}
+        <div className="relative z-10 flex items-center gap-0.5">
+          <ToolbarButton
+            icon={<TagIcon />}
+            onClick={() => onToggleTagBar?.()}
+            title="Toggle Tags"
+            active={tagBarVisible}
+          />
+          <ToolbarButton
+            icon={<CommandIcon />}
+            onClick={() => onActionPanel?.()}
+            title="Action Panel (⌘K)"
+          />
+          <ToolbarButton
+            icon={<BrowseIcon />}
+            onClick={() => onBrowse?.()}
+            title="Browse Notes (⌘P)"
+          />
+          <ToolbarButton
+            icon={<PlusIcon />}
+            onClick={() => onNewNote?.()}
+            title="New Note (⌘N)"
+          />
+        </div>
       </div>
-    </div>
-    {children}
     </div>
   );
 }

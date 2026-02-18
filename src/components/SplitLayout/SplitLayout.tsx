@@ -51,7 +51,7 @@ export default function SplitLayout({ children }: SplitLayoutProps) {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-full min-h-0 overflow-hidden">
       {/* Sidebar */}
       <div
         style={{ width: localWidth, minWidth: 200, maxWidth: 500 }}

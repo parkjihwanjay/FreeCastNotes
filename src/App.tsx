@@ -576,22 +576,25 @@ function App() {
     </>
   );
 
-  // Editor pane (shared content for both layout modes)
-  const editorPane = (
+  const toolbar = (
+    <Toolbar
+      title={title}
+      chromeActive={chromeActive}
+      onBrowse={openBrowse}
+      onNewNote={() => {
+        createNoteAndFocus(true);
+      }}
+      onActionPanel={() => setActionPanelOpen(true)}
+      onToggleTagBar={() => setTagBarVisible((v) => !v)}
+      tagBarVisible={tagBarVisible}
+    >
+      {tagBarVisible && <TagBar inline />}
+    </Toolbar>
+  );
+
+  // Editor content only (no toolbar) — in split mode toolbar is full-width above
+  const editorPaneContent = (
     <>
-      <Toolbar
-        title={title}
-        chromeActive={chromeActive}
-        onBrowse={openBrowse}
-        onNewNote={() => {
-          createNoteAndFocus(true);
-        }}
-        onActionPanel={() => setActionPanelOpen(true)}
-        onToggleTagBar={() => setTagBarVisible((v) => !v)}
-        tagBarVisible={tagBarVisible}
-      >
-        {tagBarVisible && <TagBar />}
-      </Toolbar>
       {findBarOpen && editor && (
         <FindBar editor={editor} onClose={() => setFindBarOpen(false)} />
       )}
@@ -603,11 +606,14 @@ function App() {
   if (layoutMode === "split") {
     return (
       <div
-        className="relative h-screen overflow-hidden bg-[#232323]"
+        className="relative flex h-screen flex-col overflow-hidden bg-[#232323]"
         onMouseEnter={() => setIsPointerInside(true)}
         onMouseLeave={() => setIsPointerInside(false)}
       >
-        <SplitLayout>{editorPane}</SplitLayout>
+        {toolbar}
+        <div className="min-h-0 flex-1 overflow-hidden">
+          <SplitLayout>{editorPaneContent}</SplitLayout>
+        </div>
         {overlays}
       </div>
     );
@@ -619,7 +625,8 @@ function App() {
       onMouseEnter={() => setIsPointerInside(true)}
       onMouseLeave={() => setIsPointerInside(false)}
     >
-      {editorPane}
+      {toolbar}
+      {editorPaneContent}
       {overlays}
     </div>
   );
