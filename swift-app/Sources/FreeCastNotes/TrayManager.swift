@@ -53,27 +53,22 @@ class TrayManager {
 
         menu.addItem(NSMenuItem.separator())
 
-        // View → Layout submenu
+        // View → Single / Split (direct, no Layout submenu)
         let viewItem = NSMenuItem(title: "View", action: nil, keyEquivalent: "")
         let viewMenu = NSMenu(title: "View")
-
-        let layoutItem = NSMenuItem(title: "Layout", action: nil, keyEquivalent: "")
-        let layoutMenu = NSMenu(title: "Layout")
 
         let singleItem = NSMenuItem(title: "Single", action: #selector(setLayoutSingle), keyEquivalent: "")
         singleItem.target = self
         singleItem.state = currentLayoutMode == "single" ? .on : .off
-        layoutMenu.addItem(singleItem)
+        viewMenu.addItem(singleItem)
         self.singleLayoutItem = singleItem
 
         let splitItem = NSMenuItem(title: "Split", action: #selector(setLayoutSplit), keyEquivalent: "")
         splitItem.target = self
         splitItem.state = currentLayoutMode == "split" ? .on : .off
-        layoutMenu.addItem(splitItem)
+        viewMenu.addItem(splitItem)
         self.splitLayoutItem = splitItem
 
-        layoutItem.submenu = layoutMenu
-        viewMenu.addItem(layoutItem)
         viewItem.submenu = viewMenu
         menu.addItem(viewItem)
 
