@@ -157,6 +157,9 @@ class WebViewController: NSViewController, WKScriptMessageHandler, WKNavigationD
         case "importFile":
             handleImportFile(callId: callId)
 
+        case "importImage":
+            handleImportImage(callId: callId)
+
         case "notifyLayoutMode":
             if let mode = payload?["mode"] as? String {
                 DispatchQueue.main.async { [weak self] in
@@ -269,6 +272,46 @@ class WebViewController: NSViewController, WKScriptMessageHandler, WKNavigationD
                 }
             } else {
                 self?.respond(callId: callId, type: "importFile", result: false)
+            }
+        }
+    }
+
+    // MARK: - Image Import
+
+    private func handleImportImage(callId: String?) {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.png, .jpeg, .gif, .webP, .heic, .tiff, .bmp]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.title = "Insert Image"
+        panel.prompt = "Insert"
+
+        hostWindow?.level = .normal
+
+        panel.begin { [weak self] response in
+            self?.hostWindow?.level = .floating
+            guard response == .OK, let url = panel.url else {
+                self?.respond(callId: callId, type: "importImage", result: false)
+                return
+            }
+            do {
+                let data = try Data(contentsOf: url)
+                let ext = url.pathExtension.lowercased()
+                let mime: String
+                switch ext {
+                case "jpg", "jpeg": mime = "image/jpeg"
+                case "gif":         mime = "image/gif"
+                case "webp":        mime = "image/webp"
+                case "heic":        mime = "image/heic"
+                case "tiff", "tif": mime = "image/tiff"
+                case "bmp":         mime = "image/bmp"
+                default:            mime = "image/png"
+                }
+                let dataURL = "data:\(mime);base64,\(data.base64EncodedString())"
+                self?.respond(callId: callId, type: "importImage", result: dataURL)
+            } catch {
+                print("[FreeCastNotes] importImage failed: \(error)")
+                self?.respond(callId: callId, type: "importImage", result: false)
             }
         }
     }

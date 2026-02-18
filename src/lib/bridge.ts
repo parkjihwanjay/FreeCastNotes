@@ -118,6 +118,16 @@ export const bridge = {
     return Promise.resolve({ success: false, folder: "" });
   },
 
+  // Image import (native open dialog → base64 data URL)
+  importImage: (): Promise<string | null> => {
+    if (isSwiftAvailable()) {
+      return window.swiftBridge!.call("importImage", {}, 120000).then((result) =>
+        typeof result === "string" ? result : null,
+      );
+    }
+    return Promise.resolve(null);
+  },
+
   // File import (native open dialog)
   importFile: (): Promise<string | null> => {
     if (isSwiftAvailable()) {

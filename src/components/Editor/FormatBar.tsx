@@ -6,7 +6,7 @@ import {
   type ReactNode,
 } from "react";
 import type { Editor } from "@tiptap/react";
-import { compressImage, validateImageFile } from "../../lib/imageUtils";
+import { bridge } from "../../lib/bridge";
 
 interface FormatBarProps {
   editor: Editor | null;
@@ -20,7 +20,6 @@ export default function FormatBar({
   const [visible, setVisible] = useState(true);
   const [headingOpen, setHeadingOpen] = useState(false);
   const headingMenuRef = useRef<HTMLDivElement | null>(null);
-  const imageInputRef = useRef<HTMLInputElement | null>(null);
 
   // Toggle with ⌥⌘,
   useEffect(() => {
@@ -261,27 +260,14 @@ export default function FormatBar({
         <FormatBtn
           icon={<ImageIcon />}
           active={false}
-          onClick={() => imageInputRef.current?.click()}
-          tooltip="Insert image"
-        />
-        <input
-          ref={imageInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={async (e) => {
-            const file = e.target.files?.[0];
-            if (!file || !editor) return;
-            const error = validateImageFile(file);
-            if (error) {
-              console.warn("Image rejected:", error);
-              return;
+          onClick={async () => {
+            if (!editor) return;
+            const src = await bridge.importImage();
+            if (src) {
+              editor.chain().focus().setImage({ src }).run();
             }
-            const src = await compressImage(file);
-            editor.chain().focus().setImage({ src }).run();
-            // Reset so the same file can be selected again
-            e.target.value = "";
           }}
+          tooltip="Insert image"
         />
       </div>
 
