@@ -4,10 +4,15 @@ class TrayManager {
     private var statusItem: NSStatusItem!
     private weak var window: MainWindow?
     private weak var webViewController: WebViewController?
+    private weak var preferencesWindowController: PreferencesWindowController?
 
     private var currentLayoutMode = "single"
     private var singleLayoutItem: NSMenuItem?
     private var splitLayoutItem: NSMenuItem?
+
+    func setPreferencesWindowController(_ controller: PreferencesWindowController) {
+        preferencesWindowController = controller
+    }
 
     init(window: MainWindow, webViewController: WebViewController) {
         self.window = window
@@ -118,9 +123,7 @@ class TrayManager {
     }
 
     @objc private func openPreferences() {
-        guard let window = window else { return }
-        WindowPositioner.showOnTop(window)
-        webViewController?.sendToReact(event: "tray-open-preferences")
+        preferencesWindowController?.show()
     }
 
     @objc private func openShortcutSettings() {

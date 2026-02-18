@@ -8,6 +8,8 @@ interface PreferencesPanelProps {
   currentShortcut: string;
   onClose: () => void;
   onSaveShortcut: (shortcut: string) => Promise<void>;
+  /** When true, rendered in the standalone Preferences window (no overlay, close = hide window) */
+  standalone?: boolean;
 }
 
 const MODIFIER_KEYS = new Set(["Shift", "Control", "Alt", "Meta"]);
@@ -17,6 +19,7 @@ export default function PreferencesPanel({
   currentShortcut,
   onClose,
   onSaveShortcut,
+  standalone = false,
 }: PreferencesPanelProps) {
   const { layoutMode, setLayoutMode, sortOrder, setSortOrder, notes } = useAppStore();
   const [shortcutValue, setShortcutValue] = useState(currentShortcut);
@@ -27,16 +30,16 @@ export default function PreferencesPanel({
   const [movingVault, setMovingVault] = useState(false);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open && !standalone) return;
     setShortcutValue(currentShortcut);
     setRecording(false);
     setSaving(false);
     setError(null);
     bridge.vaultGetFolder().then(setVaultFolder).catch(() => {});
-  }, [open, currentShortcut]);
+  }, [open, currentShortcut, standalone]);
 
   useEffect(() => {
-    if (!open || !recording) return;
+    if ((!open && !standalone) || !recording) return;
 
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -58,7 +61,7 @@ export default function PreferencesPanel({
 
     window.addEventListener("keydown", handler, true);
     return () => window.removeEventListener("keydown", handler, true);
-  }, [open, recording]);
+  }, [open, standalone, recording]);
 
   const prettyShortcut = useMemo(
     () => formatShortcut(shortcutValue),
@@ -77,7 +80,20 @@ export default function PreferencesPanel({
     }
   };
 
-  if (!open) return null;
+  if (!open && !standalone) return null;
+
+  // Standalone: Escape closes the Preferences window
+  useEffect(() => {
+    if (!standalone) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handler, true);
+    return () => window.removeEventListener("keydown", handler, true);
+  }, [standalone, onClose]);
 
   const handleSaveShortcut = async () => {
     if (!hasModifier(shortcutValue)) {
@@ -97,15 +113,15 @@ export default function PreferencesPanel({
     }
   };
 
-  return (
+  const panelContent = (
     <div
-      className="animate-overlay-in fixed inset-0 z-[60] flex items-start justify-center bg-black/40 pt-16"
-      onClick={onClose}
+      className={
+        standalone
+          ? "w-[400px] overflow-y-auto rounded-xl border border-white/12 bg-[#2C2C2E] shadow-2xl"
+          : "animate-panel-in w-[400px] overflow-hidden rounded-xl border border-white/12 bg-[#2C2C2E] shadow-2xl"
+      }
+      onClick={standalone ? undefined : (e) => e.stopPropagation()}
     >
-      <div
-        className="animate-panel-in w-[400px] overflow-hidden rounded-xl border border-white/12 bg-[#2C2C2E] shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
         {/* Header */}
         <div className="border-b border-white/8 px-4 py-3">
           <h3 className="text-sm font-semibold text-[#E5E5E7]">Preferences</h3>
@@ -260,6 +276,18 @@ export default function PreferencesPanel({
           </button>
         </div>
       </div>
+  );
+
+  if (standalone) {
+    return panelContent;
+  }
+
+  return (
+    <div
+      className="animate-overlay-in fixed inset-0 z-[60] flex items-start justify-center bg-black/40 pt-16"
+      onClick={onClose}
+    >
+      {panelContent}
     </div>
   );
 }

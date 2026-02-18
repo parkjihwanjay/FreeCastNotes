@@ -6,6 +6,7 @@ class WebViewController: NSViewController, WKScriptMessageHandler, WKNavigationD
     weak var hostWindow: MainWindow?
     private var shortcutManager: ShortcutManager?
     private weak var trayManager: TrayManager?
+    private weak var preferencesWindowController: PreferencesWindowController?
 
     init(window: MainWindow) {
         self.hostWindow = window
@@ -22,6 +23,10 @@ class WebViewController: NSViewController, WKScriptMessageHandler, WKNavigationD
 
     func setTrayManager(_ manager: TrayManager) {
         self.trayManager = manager
+    }
+
+    func setPreferencesWindowController(_ controller: PreferencesWindowController) {
+        self.preferencesWindowController = controller
     }
 
     override func loadView() {
@@ -159,6 +164,11 @@ class WebViewController: NSViewController, WKScriptMessageHandler, WKNavigationD
 
         case "importImage":
             handleImportImage(callId: callId)
+
+        case "openPreferences":
+            DispatchQueue.main.async { [weak self] in
+                self?.preferencesWindowController?.show()
+            }
 
         case "notifyLayoutMode":
             if let mode = payload?["mode"] as? String {

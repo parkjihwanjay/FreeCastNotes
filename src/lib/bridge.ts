@@ -118,6 +118,13 @@ export const bridge = {
     return Promise.resolve({ success: false, folder: "" });
   },
 
+  // Open the Preferences window (separate NSWindow)
+  openPreferences: (): void => {
+    if (isSwiftAvailable()) {
+      window.swiftBridge!.postMessage("openPreferences");
+    }
+  },
+
   // Image import (native open dialog → base64 data URL)
   importImage: (): Promise<string | null> => {
     if (isSwiftAvailable()) {

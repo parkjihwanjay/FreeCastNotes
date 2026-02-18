@@ -5,6 +5,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var webViewController: WebViewController!
     var trayManager: TrayManager!
     var shortcutManager: ShortcutManager!
+    var preferencesWindowController: PreferencesWindowController!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         print("[FreeCastNotes] App launching...")
@@ -16,12 +17,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         webViewController = WebViewController(window: mainWindow)
         mainWindow.contentViewController = webViewController
 
-        trayManager = TrayManager(window: mainWindow, webViewController: webViewController)
         shortcutManager = ShortcutManager(window: mainWindow)
+        preferencesWindowController = PreferencesWindowController(shortcutManager: shortcutManager)
+
+        trayManager = TrayManager(window: mainWindow, webViewController: webViewController)
+        trayManager.setPreferencesWindowController(preferencesWindowController)
 
         // Connect shortcut manager and tray manager to web view controller for IPC
         webViewController.setShortcutManager(shortcutManager)
         webViewController.setTrayManager(trayManager)
+        webViewController.setPreferencesWindowController(preferencesWindowController)
 
         // Show window on launch
         mainWindow.makeKeyAndOrderFront(nil)

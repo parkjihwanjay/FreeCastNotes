@@ -8,7 +8,6 @@ import ActionPanel from "./components/ActionPanel/ActionPanel";
 import Toast from "./components/Toast/Toast";
 import FindBar from "./components/Editor/FindBar";
 import ShortcutSettings from "./components/ShortcutSettings/ShortcutSettings";
-import PreferencesPanel from "./components/PreferencesPanel/PreferencesPanel";
 import SplitLayout from "./components/SplitLayout/SplitLayout";
 import TagBar from "./components/TagBar/TagBar";
 import { useAppEditor } from "./hooks/useEditor";
@@ -23,7 +22,6 @@ function App() {
   const [actionPanelOpen, setActionPanelOpen] = useState(false);
   const [findBarOpen, setFindBarOpen] = useState(false);
   const [shortcutSettingsOpen, setShortcutSettingsOpen] = useState(false);
-  const [preferencesOpen, setPreferencesOpen] = useState(false);
   const [globalShortcut, setGlobalShortcut] = useState("Alt+N");
   const [isPointerInside, setIsPointerInside] = useState(false);
   const [title, setTitle] = useState("Untitled");
@@ -238,15 +236,6 @@ function App() {
     });
   }, []);
 
-  // Listen for tray "Preferences" event
-  useEffect(() => {
-    return bridge.on("tray-open-preferences", () => {
-      setBrowseOpen(false);
-      setActionPanelOpen(false);
-      setPreferencesOpen(true);
-    });
-  }, []);
-
   // Listen for tray layout change (has detail payload, so use addEventListener directly)
   useEffect(() => {
     const handler = (e: Event) => {
@@ -368,12 +357,18 @@ function App() {
         const key = (e.key ?? "").toLowerCase();
         const mod = e.metaKey || e.ctrlKey;
 
-        if (shortcutSettingsOpen || preferencesOpen) {
+        if (shortcutSettingsOpen) {
           if (key === "escape") {
             e.preventDefault();
             setShortcutSettingsOpen(false);
-            setPreferencesOpen(false);
           }
+          return;
+        }
+
+        // ⌘, — Open Preferences (separate window)
+        if (mod && !e.shiftKey && !e.altKey && (key === "," || e.code === "Comma")) {
+          e.preventDefault();
+          bridge.openPreferences();
           return;
         }
 
@@ -525,7 +520,6 @@ function App() {
     browseOpen,
     actionPanelOpen,
     shortcutSettingsOpen,
-    preferencesOpen,
   ]);
 
   if (loading) {
@@ -564,12 +558,6 @@ function App() {
         currentShortcut={globalShortcut}
         onClose={() => setShortcutSettingsOpen(false)}
         onSave={saveGlobalShortcut}
-      />
-      <PreferencesPanel
-        open={preferencesOpen}
-        currentShortcut={globalShortcut}
-        onClose={() => setPreferencesOpen(false)}
-        onSaveShortcut={saveGlobalShortcut}
       />
       <Toast />
     </>
