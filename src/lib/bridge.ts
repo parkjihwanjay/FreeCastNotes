@@ -135,6 +135,110 @@ export const bridge = {
     }
   },
 
+  // --- Vault commands ---
+
+  vaultGetFolder: (): Promise<string> => {
+    if (isSwiftAvailable()) {
+      return window.swiftBridge!.call("vaultGetFolder") as Promise<string>;
+    }
+    return Promise.resolve("~/Documents/FreeCastNotes");
+  },
+
+  vaultSetFolder: (): Promise<string> => {
+    if (isSwiftAvailable()) {
+      return window.swiftBridge!.call("vaultSetFolder", {}, 120000).then(
+        (r) => (typeof r === "string" ? r : ""),
+      );
+    }
+    return Promise.resolve("");
+  },
+
+  vaultLoadAll: (): Promise<{
+    notes: Array<{ filename: string; content: string; mtime: number }>;
+    deleted: Array<{ filename: string; content: string; mtime: number }>;
+  }> => {
+    if (isSwiftAvailable()) {
+      return window.swiftBridge!.call("vaultLoadAll", {}, 60000).then((r) => {
+        if (r && typeof r === "object" && !Array.isArray(r)) {
+          return r as {
+            notes: Array<{ filename: string; content: string; mtime: number }>;
+            deleted: Array<{ filename: string; content: string; mtime: number }>;
+          };
+        }
+        return { notes: [], deleted: [] };
+      });
+    }
+    return Promise.resolve({ notes: [], deleted: [] });
+  },
+
+  vaultWriteNote: (
+    filename: string,
+    content: string,
+    attachments: Array<{ path: string; base64: string }>,
+    subfolder?: string,
+  ): Promise<boolean> => {
+    if (isSwiftAvailable()) {
+      return window.swiftBridge!.call(
+        "vaultWriteNote",
+        { filename, content, attachments, subfolder },
+        30000,
+      ) as Promise<boolean>;
+    }
+    return Promise.resolve(false);
+  },
+
+  vaultReadNote: (filename: string): Promise<string> => {
+    if (isSwiftAvailable()) {
+      return window.swiftBridge!.call("vaultReadNote", { filename }, 60000).then(
+        (r) => (typeof r === "string" ? r : ""),
+      );
+    }
+    return Promise.resolve("");
+  },
+
+  vaultDeleteNote: (filename: string): Promise<boolean> => {
+    if (isSwiftAvailable()) {
+      return window.swiftBridge!.call(
+        "vaultDeleteNote",
+        { filename },
+        30000,
+      ) as Promise<boolean>;
+    }
+    return Promise.resolve(false);
+  },
+
+  vaultRestoreNote: (filename: string): Promise<boolean> => {
+    if (isSwiftAvailable()) {
+      return window.swiftBridge!.call(
+        "vaultRestoreNote",
+        { filename },
+        30000,
+      ) as Promise<boolean>;
+    }
+    return Promise.resolve(false);
+  },
+
+  vaultPurgeDeleted: (): Promise<void> => {
+    if (isSwiftAvailable()) {
+      return window.swiftBridge!.call("vaultPurgeDeleted", {}, 30000) as Promise<void>;
+    }
+    return Promise.resolve();
+  },
+
+  vaultGetChanges: (
+    since: number,
+  ): Promise<Array<{ filename: string; content: string }>> => {
+    if (isSwiftAvailable()) {
+      return window.swiftBridge!.call("vaultGetChanges", { since }, 30000).then(
+        (r) =>
+          Array.isArray(r)
+            ? (r as Array<{ filename: string; content: string }>)
+            : [],
+      );
+    }
+    return Promise.resolve([]);
+  },
+
   // Event listeners (Swift → React via CustomEvent)
   on: (event: string, callback: () => void): (() => void) => {
     const handler = () => callback();

@@ -44,6 +44,14 @@ export function markdownToHtml(md: string): string {
       continue;
     }
 
+    // Standalone image line: ![alt](src)
+    const imgMatch = line.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
+    if (imgMatch) {
+      html.push(`<img src="${imgMatch[2]}" alt="${imgMatch[1]}">`);
+      i++;
+      continue;
+    }
+
     // Task list (must check before regular unordered list)
     if (/^[-*]\s+\[[ xX]\]\s/.test(line)) {
       const items: string[] = [];
@@ -114,6 +122,12 @@ function parseInline(text: string): string {
     codes.push(code);
     return `\x00CODE${codes.length - 1}\x00`;
   });
+
+  // Images: ![alt](src) — must come before links
+  result = result.replace(
+    /!\[([^\]]*)\]\(([^)]+)\)/g,
+    '<img src="$2" alt="$1">',
+  );
 
   // Links: [text](url)
   result = result.replace(

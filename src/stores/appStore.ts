@@ -1,6 +1,7 @@
 import { create } from "zustand";
-import type { Note, SortOrder } from "../types";
+import type { Note, SortOrder } from "../types/index";
 import * as db from "../lib/db";
+import { runMigrationIfNeeded } from "../lib/migration";
 
 interface AppState {
   notes: Note[];
@@ -25,6 +26,9 @@ interface AppState {
   togglePin: (id: string) => Promise<void>;
   duplicateNote: (id: string) => Promise<Note | null>;
   updateNoteTags: (id: string, tags: string[]) => Promise<void>;
+  reloadChangedNotes: (
+    files: Array<{ filename: string; content: string }>,
+  ) => Promise<void>;
 
   // Navigation
   goBack: () => Promise<void>;
@@ -88,6 +92,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   loadNotes: async () => {
     try {
+      await runMigrationIfNeeded();
       const rawNotes = await db.listNotes();
       const notes = db.sortNotes(rawNotes, get().sortOrder);
       set({ notes, loading: false });
@@ -247,6 +252,25 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch (error) {
       console.error("Failed to update note tags", error);
       get().showToast("Could not update tags");
+    }
+  },
+
+  reloadChangedNotes: async (files) => {
+    if (files.length === 0) return;
+    const { currentNote, sortOrder } = get();
+
+    // Refresh notes list from vault
+    const rawNotes = await db.listNotes();
+    const notes = db.sortNotes(rawNotes, sortOrder);
+    set({ notes });
+
+    // If current note changed externally, reload it with full image resolution
+    if (currentNote) {
+      const currentFilename = db.getNoteFilename(currentNote.id);
+      if (currentFilename && files.some((f) => f.filename === currentFilename)) {
+        const refreshed = await db.getNote(currentNote.id);
+        if (refreshed) set({ currentNote: refreshed });
+      }
     }
   },
 

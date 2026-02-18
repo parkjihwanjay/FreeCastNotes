@@ -14,7 +14,7 @@ import TagBar from "./components/TagBar/TagBar";
 import { useAppEditor } from "./hooks/useEditor";
 import { useAppStore } from "./stores/appStore";
 import { extractTitle } from "./lib/utils";
-import { copyAsMarkdown } from "./lib/export";
+import { copyAsMarkdown, jsonToMarkdown } from "./lib/export";
 import { markdownToHtml } from "./lib/import";
 
 function App() {
@@ -45,6 +45,7 @@ function App() {
     toggleAutoResize,
     layoutMode,
     setLayoutMode,
+    reloadChangedNotes,
   } = useAppStore();
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -93,16 +94,21 @@ function App() {
       return;
     }
 
-    const currentContent = JSON.stringify(editor.getJSON());
     const noteContent = currentNote.content || "";
-    if (noteContent && noteContent !== currentContent) {
-      try {
-        const json = JSON.parse(noteContent);
-        editor.commands.setContent(json);
-      } catch {
-        editor.commands.setContent("");
+    if (noteContent) {
+      if (noteContent.trimStart().startsWith("{")) {
+        // Legacy TipTap JSON (notes migrated from localStorage)
+        try {
+          const json = JSON.parse(noteContent);
+          editor.commands.setContent(json);
+        } catch {
+          editor.commands.setContent("");
+        }
+      } else {
+        // Vault mode: Markdown content (images already resolved to base64 by Swift)
+        editor.commands.setContent(markdownToHtml(noteContent));
       }
-    } else if (!noteContent) {
+    } else {
       editor.commands.setContent("");
     }
     // Auto-focus editor at end when switching notes
@@ -132,7 +138,7 @@ function App() {
     if (!editor || !currentNoteIdRef.current) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      const content = JSON.stringify(editor.getJSON());
+      const content = jsonToMarkdown(editor.getJSON());
       updateCurrentNoteContent(content);
     }, 300);
   }, [editor, updateCurrentNoteContent]);
@@ -197,6 +203,24 @@ function App() {
         console.error("Failed to load global shortcut", error);
       });
   }, []);
+
+  // Reload notes changed externally when window gains focus (vault sync)
+  useEffect(() => {
+    let lastLoad = Date.now();
+    const handler = async () => {
+      try {
+        const changed = await bridge.vaultGetChanges(lastLoad);
+        lastLoad = Date.now();
+        if (changed.length > 0) {
+          await reloadChangedNotes(changed);
+        }
+      } catch {
+        /* ignore focus-reload errors */
+      }
+    };
+    window.addEventListener("focus", handler);
+    return () => window.removeEventListener("focus", handler);
+  }, [reloadChangedNotes]);
 
   // Listen for tray "New Note" event
   useEffect(() => {

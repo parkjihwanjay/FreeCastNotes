@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import type { SortOrder } from "../../types";
+import type { SortOrder } from "../../types/index";
 import { useAppStore } from "../../stores/appStore";
+import { bridge } from "../../lib/bridge";
 
 interface PreferencesPanelProps {
   open: boolean;
@@ -17,11 +18,13 @@ export default function PreferencesPanel({
   onClose,
   onSaveShortcut,
 }: PreferencesPanelProps) {
-  const { layoutMode, setLayoutMode, sortOrder, setSortOrder } = useAppStore();
+  const { layoutMode, setLayoutMode, sortOrder, setSortOrder, notes } = useAppStore();
   const [shortcutValue, setShortcutValue] = useState(currentShortcut);
   const [recording, setRecording] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [vaultFolder, setVaultFolder] = useState("~/Documents/FreeCastNotes");
+  const [movingVault, setMovingVault] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -29,6 +32,7 @@ export default function PreferencesPanel({
     setRecording(false);
     setSaving(false);
     setError(null);
+    bridge.vaultGetFolder().then(setVaultFolder).catch(() => {});
   }, [open, currentShortcut]);
 
   useEffect(() => {
@@ -60,6 +64,18 @@ export default function PreferencesPanel({
     () => formatShortcut(shortcutValue),
     [shortcutValue],
   );
+
+  const handleChangeVaultFolder = async () => {
+    try {
+      setMovingVault(true);
+      const newPath = await bridge.vaultSetFolder();
+      if (newPath) {
+        setVaultFolder(newPath);
+      }
+    } finally {
+      setMovingVault(false);
+    }
+  };
 
   if (!open) return null;
 
@@ -96,6 +112,30 @@ export default function PreferencesPanel({
         </div>
 
         <div className="divide-y divide-white/8">
+          {/* Vault Folder section */}
+          <div className="space-y-2 px-4 py-4">
+            <p className="text-[11px] uppercase tracking-wide text-[#E5E5E7]/40">
+              Vault Folder
+            </p>
+            <div className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-black/20 px-3 py-2">
+              <div className="min-w-0">
+                <p className="truncate font-mono text-[11px] text-[#E5E5E7]/75">
+                  {vaultFolder.replace(/^\/Users\/[^/]+/, "~")}
+                </p>
+                <p className="text-[11px] text-[#E5E5E7]/35">
+                  {notes.length} {notes.length === 1 ? "note" : "notes"}
+                </p>
+              </div>
+              <button
+                onClick={handleChangeVaultFolder}
+                disabled={movingVault}
+                className="shrink-0 rounded-md px-2.5 py-1 text-[11px] text-[#E5E5E7]/65 transition-colors hover:bg-white/8 hover:text-[#E5E5E7] disabled:opacity-50"
+              >
+                {movingVault ? "Moving…" : "Change Location…"}
+              </button>
+            </div>
+          </div>
+
           {/* Layout section */}
           <div className="space-y-2 px-4 py-4">
             <p className="text-[11px] uppercase tracking-wide text-[#E5E5E7]/40">
