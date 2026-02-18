@@ -61,6 +61,17 @@ function withTagFrontmatter(md: string, tags: string[]): string {
   return `---\ntags: [${tags.join(", ")}]\n---\n\n${md}`;
 }
 
+function escapeHtml(text: string): string {
+  const map: Record<string, string> = {
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;",
+  };
+  return text.replace(/[&<>"']/g, (m) => map[m]);
+}
+
 // --- TipTap JSON to Markdown converter ---
 
 export interface TipTapNode {
@@ -127,6 +138,13 @@ function nodeToMarkdown(node: TipTapNode, depth: number): string {
     case "image": {
       const src = (node.attrs?.src as string) || "";
       const alt = (node.attrs?.alt as string) || "";
+      const width = node.attrs?.width as number | null | undefined;
+      
+      // If width is set, use HTML format to preserve it
+      // Otherwise use standard markdown format
+      if (width && width > 0) {
+        return `<img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" width="${width}">\n`;
+      }
       return `![${alt}](${src})\n`;
     }
 

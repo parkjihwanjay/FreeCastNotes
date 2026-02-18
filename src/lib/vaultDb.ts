@@ -157,12 +157,38 @@ function extractAttachments(
 ): { md: string; attachments: Array<{ path: string; base64: string }> } {
   const attachments: Array<{ path: string; base64: string }> = [];
 
-  const md = markdown.replace(
+  // First, handle HTML img tags with width: <img src="data:image/..." alt="..." width="500">
+  let md = markdown.replace(
+    /<img\s+src="(data:image\/([^;]+);base64,([^"]+))"\s+alt="([^"]*)"(?:\s+width="(\d+)")?\s*>/g,
+    (_, _fullSrc: string, ext: string, base64: string, alt: string, width: string | undefined) => {
+      const fileExt = ext === "jpeg" ? "jpg" : ext;
+      const hash = simpleHash(base64);
+      const relPath = `attachments/${id8}-${hash}.${fileExt}`;
+      const sizeKB = Math.round(base64.length * 0.75 / 1024);
+      
+      console.log(`[FreeCastNotes] Extracting image: ${relPath} (${sizeKB} KB, format: ${ext}${width ? `, width: ${width}px` : ""})`);
+      
+      attachments.push({ path: relPath, base64 });
+      
+      // Preserve width if it was set
+      if (width) {
+        return `<img src="${relPath}" alt="${alt}" width="${width}">`;
+      }
+      return `![${alt}](${relPath})`;
+    },
+  );
+
+  // Then handle standard markdown images: ![alt](data:image/...)
+  md = md.replace(
     /!\[([^\]]*)\]\((data:image\/([^;]+);base64,([^)]+))\)/g,
     (_, alt: string, _fullSrc: string, ext: string, base64: string) => {
       const fileExt = ext === "jpeg" ? "jpg" : ext;
       const hash = simpleHash(base64);
       const relPath = `attachments/${id8}-${hash}.${fileExt}`;
+      const sizeKB = Math.round(base64.length * 0.75 / 1024);
+      
+      console.log(`[FreeCastNotes] Extracting image: ${relPath} (${sizeKB} KB, format: ${ext})`);
+      
       attachments.push({ path: relPath, base64 });
       return `![${alt}](${relPath})`;
     },
@@ -300,6 +326,16 @@ export async function getNote(id: string): Promise<Note | null> {
   const cached = _notesMeta.get(id);
   if (!cached) return null;
 
+  // Check for broken image references (attachments/... paths that weren't resolved)
+  const brokenImageMatches = body.match(/!\[([^\]]*)\]\((attachments\/[^)]+)\)/g);
+  if (brokenImageMatches && brokenImageMatches.length > 0) {
+    console.warn(`[FreeCastNotes] ⚠️ Note "${filename}" has ${brokenImageMatches.length} broken image reference(s):`);
+    brokenImageMatches.forEach((match, i) => {
+      console.warn(`  ${i + 1}. ${match}`);
+    });
+    console.warn(`[FreeCastNotes] These images will be removed from the note.`);
+  }
+
   // Return note with resolved markdown body (base64 images for editor display)
   return { ...cached, content: body };
 }
@@ -314,10 +350,28 @@ export async function updateNote(id: string, content: string): Promise<void> {
   if (!note || !filename) return;
 
   const { md, attachments } = extractAttachments(content, id.slice(0, 8));
+  
+  if (attachments.length > 0) {
+    console.log(`[FreeCastNotes] Saving note "${filename}" with ${attachments.length} attachment(s):`);
+    attachments.forEach((att, i) => {
+      const sizeKB = Math.round(att.base64.length * 0.75 / 1024);
+      console.log(`  ${i + 1}. ${att.path} (${sizeKB} KB)`);
+    });
+  }
+  
   const updatedNote: Note = { ...note, content: md, updated_at: now() };
   const fileContent = serializeNote(updatedNote, md);
 
-  await bridge.vaultWriteNote(filename, fileContent, attachments);
+  const success = await bridge.vaultWriteNote(filename, fileContent, attachments);
+  
+  if (attachments.length > 0) {
+    if (success) {
+      console.log(`[FreeCastNotes] ✓ Successfully saved note with attachments`);
+    } else {
+      console.error(`[FreeCastNotes] ✗ Failed to save note with attachments`);
+    }
+  }
+  
   _notesMeta.set(id, updatedNote);
 }
 
@@ -470,4 +524,53 @@ export async function purgeDeletedNotes(): Promise<void> {
 /** Returns the vault filename for a note ID (for focus-reload comparison). */
 export function getNoteFilename(id: string): string | undefined {
   return _filenameMap.get(id);
+}
+
+/**
+ * Debugging function to inspect attachment status for a note.
+ * Call from browser console: window.__debugAttachments(noteId)
+ */
+export function debugAttachments(id: string): void {
+  const note = _notesMeta.get(id);
+  const filename = _filenameMap.get(id);
+  
+  if (!note || !filename) {
+    console.log(`[Debug] Note ${id} not found`);
+    return;
+  }
+  
+  console.log(`[Debug] Note: ${filename}`);
+  console.log(`[Debug] Content preview: ${note.content.substring(0, 200)}...`);
+  
+  // Find all image references in the markdown
+  const imageMatches = note.content.matchAll(/!\[([^\]]*)\]\(([^)]+)\)/g);
+  const images: Array<{ alt: string; src: string; type: string }> = [];
+  
+  for (const match of imageMatches) {
+    const alt = match[1];
+    const src = match[2];
+    const type = src.startsWith("data:") ? "base64" : src.startsWith("attachments/") ? "attachment" : "unknown";
+    images.push({ alt, src: src.substring(0, 100) + (src.length > 100 ? "..." : ""), type });
+  }
+  
+  if (images.length === 0) {
+    console.log(`[Debug] No images found in note`);
+  } else {
+    console.log(`[Debug] Found ${images.length} image reference(s):`);
+    images.forEach((img, i) => {
+      console.log(`  ${i + 1}. [${img.type}] ${img.alt || "(no alt)"}: ${img.src}`);
+    });
+  }
+  
+  // Check for broken attachments
+  const brokenImages = images.filter(img => img.type === "attachment");
+  if (brokenImages.length > 0) {
+    console.warn(`[Debug] ⚠️ ${brokenImages.length} broken attachment reference(s) found`);
+    console.warn(`[Debug] These images reference files that may not exist on disk.`);
+  }
+}
+
+// Expose debug function to window for console access
+if (typeof window !== "undefined") {
+  (window as any).__debugAttachments = debugAttachments;
 }

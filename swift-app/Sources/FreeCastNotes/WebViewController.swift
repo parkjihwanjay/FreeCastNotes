@@ -56,6 +56,11 @@ class WebViewController: NSViewController, WKScriptMessageHandler, WKNavigationD
         webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = self
 
+        // Enable developer tools in dev mode
+        #if DEBUG
+        webView.configuration.preferences.setValue(true, forKey: "developerExtrasEnabled")
+        #endif
+
         // Transparent background to match app
         webView.setValue(false, forKey: "drawsBackground")
 
@@ -482,7 +487,54 @@ class WebViewController: NSViewController, WKScriptMessageHandler, WKNavigationD
                 return
             }
 
-            // Inline attachment images as base64 data URLs
+            // First, handle HTML img tags with width: <img src="attachments/..." alt="..." width="500">
+            let htmlImgPattern = #"<img\s+src="(attachments/[^"]+)"\s+alt="([^"]*)"(?:\s+width="(\d+)")?\s*>"#
+            if let htmlImgRegex = try? NSRegularExpression(pattern: htmlImgPattern) {
+                var result = ""
+                var lastEnd = content.startIndex
+                let nsRange = NSRange(content.startIndex..., in: content)
+
+                for match in htmlImgRegex.matches(in: content, range: nsRange) {
+                    guard let pathRange = Range(match.range(at: 1), in: content),
+                          let altRange = Range(match.range(at: 2), in: content),
+                          let fullRange = Range(match.range, in: content) else { continue }
+
+                    let relPath = String(content[pathRange])
+                    let alt = String(content[altRange])
+                    let widthMatch = match.range(at: 3)
+                    let width = widthMatch.location != NSNotFound && widthMatch.length > 0
+                        ? String(content[Range(widthMatch, in: content)!])
+                        : nil
+                    let attachmentURL = self.vaultFolderURL.appendingPathComponent(relPath)
+
+                    result += content[lastEnd..<fullRange.lowerBound]
+
+                    if let data = try? Data(contentsOf: attachmentURL) {
+                        let ext = attachmentURL.pathExtension.lowercased()
+                        let mime: String
+                        switch ext {
+                        case "jpg", "jpeg": mime = "image/jpeg"
+                        case "gif": mime = "image/gif"
+                        case "webp": mime = "image/webp"
+                        default: mime = "image/png"
+                        }
+                        let widthAttr = width != nil ? " width=\"\(width!)\"" : ""
+                        result += "<img src=\"data:\(mime);base64,\(data.base64EncodedString())\" alt=\"\(alt)\"\(widthAttr)>"
+                    } else {
+                        print("[FreeCastNotes] ⚠️ Attachment not found: \(relPath)")
+                        print("[FreeCastNotes]   Expected at: \(attachmentURL.path)")
+                        // Remove broken image reference
+                        result += ""
+                    }
+
+                    lastEnd = fullRange.upperBound
+                }
+
+                result += content[lastEnd...]
+                content = result
+            }
+
+            // Then, handle standard markdown images: ![alt](attachments/...)
             let pattern = #"!\[([^\]]*)\]\((attachments/[^)]+)\)"#
             if let regex = try? NSRegularExpression(pattern: pattern) {
                 var result = ""
@@ -511,7 +563,11 @@ class WebViewController: NSViewController, WKScriptMessageHandler, WKNavigationD
                         }
                         result += "![\(alt)](data:\(mime);base64,\(data.base64EncodedString()))"
                     } else {
-                        result += content[fullRange]
+                        print("[FreeCastNotes] ⚠️ Attachment not found: \(relPath)")
+                        print("[FreeCastNotes]   Expected at: \(attachmentURL.path)")
+                        // Remove broken image reference to prevent editor issues
+                        // User can re-add the image if needed
+                        result += ""
                     }
 
                     lastEnd = fullRange.upperBound
@@ -547,16 +603,38 @@ class WebViewController: NSViewController, WKScriptMessageHandler, WKNavigationD
 
             if !attachments.isEmpty {
                 let attachmentsURL = self.vaultFolderURL.appendingPathComponent("attachments")
-                try? fm.createDirectory(at: attachmentsURL, withIntermediateDirectories: true)
+                do {
+                    try fm.createDirectory(at: attachmentsURL, withIntermediateDirectories: true)
+                } catch {
+                    print("[FreeCastNotes] Failed to create attachments directory: \(error)")
+                }
 
                 for attachment in attachments {
                     guard let path = attachment["path"] as? String,
-                          let base64 = attachment["base64"] as? String,
-                          let data = Data(base64Encoded: base64,
-                                          options: .ignoreUnknownCharacters) else { continue }
+                          let base64 = attachment["base64"] as? String else {
+                        print("[FreeCastNotes] ⚠️ Invalid attachment: missing path or base64")
+                        continue
+                    }
+                    
+                    guard let data = Data(base64Encoded: base64,
+                                          options: .ignoreUnknownCharacters) else {
+                        print("[FreeCastNotes] ⚠️ Invalid attachment: failed to decode base64")
+                        print("[FreeCastNotes]   Path: \(path)")
+                        print("[FreeCastNotes]   Base64 length: \(base64.count)")
+                        continue
+                    }
+                    
                     let attachFilename = (path as NSString).lastPathComponent
                     let attachURL = attachmentsURL.appendingPathComponent(attachFilename)
-                    try? data.write(to: attachURL)
+                    
+                    do {
+                        try data.write(to: attachURL)
+                        print("[FreeCastNotes] ✓ Saved attachment: \(attachFilename) (\(data.count) bytes)")
+                    } catch {
+                        print("[FreeCastNotes] ✗ Failed to write attachment \(attachFilename): \(error)")
+                        print("[FreeCastNotes]   URL: \(attachURL.path)")
+                        print("[FreeCastNotes]   Data size: \(data.count) bytes")
+                    }
                 }
             }
 

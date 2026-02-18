@@ -44,6 +44,18 @@ export function markdownToHtml(md: string): string {
       continue;
     }
 
+    // HTML image tag: <img src="..." alt="..." width="...">
+    const htmlImgMatch = line.match(/^<img\s+src="([^"]+)"\s+alt="([^"]*)"(?:\s+width="(\d+)")?\s*>$/);
+    if (htmlImgMatch) {
+      const src = htmlImgMatch[1];
+      const alt = htmlImgMatch[2];
+      const width = htmlImgMatch[3];
+      const widthAttr = width ? ` width="${width}"` : "";
+      html.push(`<img src="${src}" alt="${alt}"${widthAttr}>`);
+      i++;
+      continue;
+    }
+
     // Standalone image line: ![alt](src)
     const imgMatch = line.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
     if (imgMatch) {

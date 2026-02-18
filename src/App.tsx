@@ -15,6 +15,7 @@ import { useAppStore } from "./stores/appStore";
 import { extractTitle } from "./lib/utils";
 import { copyAsMarkdown, jsonToMarkdown } from "./lib/export";
 import { markdownToHtml } from "./lib/import";
+import * as db from "./lib/db";
 
 function App() {
   const editor = useAppEditor();
@@ -50,6 +51,10 @@ function App() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const currentNoteIdRef = useRef<string | null>(null);
   const importContentRef = useRef<string | null>(null);
+  // Tracks whether setContent is being called during a note switch (suppresses auto-save)
+  const isLoadingNoteRef = useRef(false);
+  // Tracks the previous note id so we can flush its pending save before switching
+  const prevNoteIdForFlush = useRef<string | null>(null);
 
   // Track current note ID without re-triggering editor effects
   useEffect(() => {
@@ -84,11 +89,27 @@ function App() {
     editor.commands.clearSearch();
     setFindBarOpen(false);
 
+    // --- Flush any pending save for the note we're leaving ---
+    // At this point the editor still has the OLD note's content; currentNote.id is already new.
+    const prevId = prevNoteIdForFlush.current;
+    prevNoteIdForFlush.current = currentNote.id;
+    if (debounceRef.current !== null && prevId && prevId !== currentNote.id) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+      // Save old content immediately so images / resize are not lost
+      const oldContent = jsonToMarkdown(editor.getJSON());
+      db.updateNote(prevId, oldContent).catch(console.error);
+    }
+
+    // Suppress the editor update event fired by setContent so it doesn't re-arm the debounce
+    isLoadingNoteRef.current = true;
+
     // If we have imported HTML content, use it instead of the note's stored content
     if (importContentRef.current) {
       const html = importContentRef.current;
       importContentRef.current = null;
       editor.commands.setContent(html);
+      isLoadingNoteRef.current = false;
       requestAnimationFrame(() => editor.commands.focus("end"));
       return;
     }
@@ -110,6 +131,8 @@ function App() {
     } else {
       editor.commands.setContent("");
     }
+
+    isLoadingNoteRef.current = false;
     // Auto-focus editor at end when switching notes
     requestAnimationFrame(() => editor.commands.focus("end"));
   }, [editor, currentNote?.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -135,8 +158,11 @@ function App() {
   // Auto-save on editor changes with 300ms debounce
   const handleUpdate = useCallback(() => {
     if (!editor || !currentNoteIdRef.current) return;
+    // Suppress saves triggered by setContent during a note switch
+    if (isLoadingNoteRef.current) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
+      debounceRef.current = null;
       const content = jsonToMarkdown(editor.getJSON());
       updateCurrentNoteContent(content);
     }, 300);
