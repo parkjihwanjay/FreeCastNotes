@@ -322,6 +322,21 @@ export function buildActions(
 
     // --- Window ---
     {
+      id: "toggle-split-layout",
+      label:
+        store.layoutMode === "split"
+          ? "Switch to Single Layout"
+          : "Switch to Split Layout",
+      shortcut: "⌘\\",
+      icon: "⊞",
+      category: "window",
+      execute: () => {
+        const s = useAppStore.getState();
+        s.setLayoutMode(s.layoutMode === "split" ? "single" : "split");
+        callbacks.onClose();
+      },
+    },
+    {
       id: "toggle-auto-resize",
       label: store.autoResizeEnabled
         ? "Disable Window Auto-sizing"

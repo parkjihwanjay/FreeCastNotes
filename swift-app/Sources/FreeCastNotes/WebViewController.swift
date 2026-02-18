@@ -5,6 +5,7 @@ class WebViewController: NSViewController, WKScriptMessageHandler, WKNavigationD
     var webView: WKWebView!
     weak var hostWindow: MainWindow?
     private var shortcutManager: ShortcutManager?
+    private weak var trayManager: TrayManager?
 
     init(window: MainWindow) {
         self.hostWindow = window
@@ -17,6 +18,10 @@ class WebViewController: NSViewController, WKScriptMessageHandler, WKNavigationD
 
     func setShortcutManager(_ manager: ShortcutManager) {
         self.shortcutManager = manager
+    }
+
+    func setTrayManager(_ manager: TrayManager) {
+        self.trayManager = manager
     }
 
     override func loadView() {
@@ -146,6 +151,13 @@ class WebViewController: NSViewController, WKScriptMessageHandler, WKNavigationD
 
         case "importFile":
             handleImportFile(callId: callId)
+
+        case "notifyLayoutMode":
+            if let mode = payload?["mode"] as? String {
+                DispatchQueue.main.async { [weak self] in
+                    self?.trayManager?.updateLayoutCheckmark(mode: mode)
+                }
+            }
 
         default:
             print("Unknown bridge message: \(type)")

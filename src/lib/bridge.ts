@@ -111,6 +111,13 @@ export const bridge = {
     return Promise.resolve(null);
   },
 
+  // Notify Swift of layout mode change (for tray menu checkmarks)
+  notifyLayoutMode: (mode: string): void => {
+    if (isSwiftAvailable()) {
+      window.swiftBridge!.postMessage("notifyLayoutMode", { mode });
+    }
+  },
+
   // Event listeners (Swift → React via CustomEvent)
   on: (event: string, callback: () => void): (() => void) => {
     const handler = () => callback();

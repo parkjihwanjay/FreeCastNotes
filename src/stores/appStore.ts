@@ -34,6 +34,29 @@ interface AppState {
   // Auto-resize
   autoResizeEnabled: boolean;
   toggleAutoResize: () => void;
+
+  // Layout
+  layoutMode: "single" | "split";
+  splitPanelWidth: number;
+  setLayoutMode: (mode: "single" | "split") => void;
+  setSplitPanelWidth: (width: number) => void;
+}
+
+const _PREFS_KEY = "freecastnotes.prefs.v1";
+const _initPrefs: Record<string, unknown> = (() => {
+  try {
+    return JSON.parse(localStorage.getItem(_PREFS_KEY) || "{}");
+  } catch {
+    return {};
+  }
+})();
+function _savePrefs(updates: Record<string, unknown>) {
+  try {
+    const existing = JSON.parse(localStorage.getItem(_PREFS_KEY) || "{}");
+    localStorage.setItem(_PREFS_KEY, JSON.stringify({ ...existing, ...updates }));
+  } catch {
+    /* ignore */
+  }
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -225,5 +248,20 @@ export const useAppStore = create<AppState>((set, get) => ({
       localStorage.setItem("autoResize", String(next));
       return { autoResizeEnabled: next };
     });
+  },
+
+  // Layout
+  layoutMode: _initPrefs.layoutMode === "split" ? "split" : "single",
+  splitPanelWidth:
+    typeof _initPrefs.splitPanelWidth === "number"
+      ? _initPrefs.splitPanelWidth
+      : 300,
+  setLayoutMode: (mode) => {
+    set({ layoutMode: mode });
+    _savePrefs({ layoutMode: mode });
+  },
+  setSplitPanelWidth: (width) => {
+    set({ splitPanelWidth: width });
+    _savePrefs({ splitPanelWidth: width });
   },
 }));

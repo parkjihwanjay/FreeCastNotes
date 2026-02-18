@@ -8,6 +8,8 @@ import ActionPanel from "./components/ActionPanel/ActionPanel";
 import Toast from "./components/Toast/Toast";
 import FindBar from "./components/Editor/FindBar";
 import ShortcutSettings from "./components/ShortcutSettings/ShortcutSettings";
+import PreferencesPanel from "./components/PreferencesPanel/PreferencesPanel";
+import SplitLayout from "./components/SplitLayout/SplitLayout";
 import { useAppEditor } from "./hooks/useEditor";
 import { useAppStore } from "./stores/appStore";
 import { extractTitle } from "./lib/utils";
@@ -20,6 +22,7 @@ function App() {
   const [actionPanelOpen, setActionPanelOpen] = useState(false);
   const [findBarOpen, setFindBarOpen] = useState(false);
   const [shortcutSettingsOpen, setShortcutSettingsOpen] = useState(false);
+  const [preferencesOpen, setPreferencesOpen] = useState(false);
   const [globalShortcut, setGlobalShortcut] = useState("Alt+N");
   const [isPointerInside, setIsPointerInside] = useState(false);
   const [title, setTitle] = useState("Untitled");
@@ -37,6 +40,8 @@ function App() {
     showToast,
     autoResizeEnabled,
     toggleAutoResize,
+    layoutMode,
+    setLayoutMode,
   } = useAppStore();
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -180,7 +185,8 @@ function App() {
 
   // Load global shortcut from backend
   useEffect(() => {
-    bridge.getGlobalShortcut()
+    bridge
+      .getGlobalShortcut()
       .then((shortcut) => {
         if (shortcut) setGlobalShortcut(shortcut);
       })
@@ -205,46 +211,64 @@ function App() {
     });
   }, []);
 
-  // Window position persistence
+  // Listen for tray "Preferences" event
   useEffect(() => {
-    const setup = async () => {
-      // Restore saved position
-      const saved = localStorage.getItem("windowPos");
-      if (saved) {
-        try {
-          const { x, y } = JSON.parse(saved);
-          await bridge.setWindowPosition(x, y);
-        } catch {
-          /* ignore invalid saved position */
-        }
-      }
-    };
-
-    setup();
+    return bridge.on("tray-open-preferences", () => {
+      setBrowseOpen(false);
+      setActionPanelOpen(false);
+      setPreferencesOpen(true);
+    });
   }, []);
 
-  // Keep fixed window width and sane height on startup
+  // Listen for tray layout change (has detail payload, so use addEventListener directly)
   useEffect(() => {
-    const enforceWindowSize = async () => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ mode: string }>).detail;
+      if (detail?.mode === "single" || detail?.mode === "split") {
+        setLayoutMode(detail.mode);
+      }
+    };
+    window.addEventListener("tray-set-layout", handler);
+    return () => window.removeEventListener("tray-set-layout", handler);
+  }, [setLayoutMode]);
+
+  // Window position persistence
+  useEffect(() => {
+    const saved = localStorage.getItem("windowPos");
+    if (saved) {
       try {
+        const { x, y } = JSON.parse(saved);
+        bridge.setWindowPosition(x, y).catch(() => {});
+      } catch {
+        /* ignore invalid saved position */
+      }
+    }
+  }, []);
+
+  // Resize window when layout mode changes (and on first load)
+  useEffect(() => {
+    const resize = async () => {
+      try {
+        const targetWidth = layoutMode === "split" ? 1000 : 650;
         const currentSize = await bridge.getWindowSize();
         const maxH = Math.max(700, Math.floor(window.screen.availHeight * 0.8));
-        const nextHeight = Math.max(
-          700,
-          Math.min(currentSize.height, maxH),
-        );
-        if (currentSize.width !== 650 || currentSize.height !== nextHeight) {
-          await bridge.setWindowSize(650, nextHeight);
+        const nextHeight = Math.max(700, Math.min(currentSize.height, maxH));
+        if (
+          currentSize.width !== targetWidth ||
+          currentSize.height !== nextHeight
+        ) {
+          await bridge.setWindowSize(targetWidth, nextHeight);
         }
+        // Notify Swift to update tray menu checkmarks
+        bridge.notifyLayoutMode(layoutMode);
       } catch {
         /* ignore resize errors */
       }
     };
+    resize();
+  }, [layoutMode]);
 
-    enforceWindowSize();
-  }, []);
-
-  // Auto-resize window to content
+  // Auto-resize window height to content
   useEffect(() => {
     if (!autoResizeEnabled || !editor || actionPanelOpen || browseOpen) return;
 
@@ -261,11 +285,12 @@ function App() {
       const findBarH = findBarEl
         ? findBarEl.getBoundingClientRect().height
         : 0;
-      const total = 48 + contentH + 24 + formatH + findBarH; // toolbar + content + editor padding + format bar + find bar
+      const total = 48 + contentH + 24 + formatH + findBarH;
       const maxH = window.screen.availHeight * 0.8;
       const clamped = Math.max(700, Math.min(Math.ceil(total), maxH));
       try {
-        await bridge.setWindowSize(650, clamped);
+        const targetWidth = layoutMode === "split" ? 1000 : 650;
+        await bridge.setWindowSize(targetWidth, clamped);
       } catch {
         /* ignore resize errors */
       }
@@ -277,7 +302,6 @@ function App() {
       timer = window.setTimeout(doResize, 50);
     };
 
-    // Initial resize
     scheduleResize();
 
     const resizeObs = new ResizeObserver(scheduleResize);
@@ -295,7 +319,7 @@ function App() {
       mutObs.disconnect();
       clearTimeout(timer);
     };
-  }, [autoResizeEnabled, editor, actionPanelOpen, browseOpen]);
+  }, [autoResizeEnabled, editor, actionPanelOpen, browseOpen, layoutMode]);
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -304,10 +328,11 @@ function App() {
         const key = (e.key ?? "").toLowerCase();
         const mod = e.metaKey || e.ctrlKey;
 
-        if (shortcutSettingsOpen) {
+        if (shortcutSettingsOpen || preferencesOpen) {
           if (key === "escape") {
             e.preventDefault();
             setShortcutSettingsOpen(false);
+            setPreferencesOpen(false);
           }
           return;
         }
@@ -349,7 +374,6 @@ function App() {
         if (mod && !e.shiftKey && !e.altKey && (key === "f" || e.code === "KeyF")) {
           e.preventDefault();
           setFindBarOpen(true);
-          // Focus handled by FindBar component
         }
         // ⌘L — Toggle Link
         if (mod && !e.shiftKey && !e.altKey && (key === "l" || e.code === "KeyL")) {
@@ -392,12 +416,7 @@ function App() {
           goForward();
         }
         // ⇧⌘P — Toggle Pin
-        if (
-          mod &&
-          e.shiftKey &&
-          !e.altKey &&
-          (key === "p" || e.code === "KeyP")
-        ) {
+        if (mod && e.shiftKey && !e.altKey && (key === "p" || e.code === "KeyP")) {
           e.preventDefault();
           const note = useAppStore.getState().currentNote;
           if (note) {
@@ -407,24 +426,14 @@ function App() {
           }
         }
         // ⇧⌘C — Copy as Markdown
-        if (
-          mod &&
-          e.shiftKey &&
-          !e.altKey &&
-          (key === "c" || e.code === "KeyC")
-        ) {
+        if (mod && e.shiftKey && !e.altKey && (key === "c" || e.code === "KeyC")) {
           e.preventDefault();
           if (editor) {
             copyAsMarkdown(editor).then(() => showToast("Copied as Markdown"));
           }
         }
         // ⇧⌘E — Export (open action panel)
-        if (
-          mod &&
-          e.shiftKey &&
-          !e.altKey &&
-          (key === "e" || e.code === "KeyE")
-        ) {
+        if (mod && e.shiftKey && !e.altKey && (key === "e" || e.code === "KeyE")) {
           e.preventDefault();
           setActionPanelOpen(true);
         }
@@ -433,18 +442,16 @@ function App() {
           e.preventDefault();
           const wasEnabled = useAppStore.getState().autoResizeEnabled;
           toggleAutoResize();
-          showToast(
-            wasEnabled ? "Auto-sizing disabled" : "Auto-sizing enabled",
-          );
+          showToast(wasEnabled ? "Auto-sizing disabled" : "Auto-sizing enabled");
+        }
+        // ⌘\ — Toggle Split Layout
+        if (mod && !e.shiftKey && !e.altKey && e.code === "Backslash") {
+          e.preventDefault();
+          const current = useAppStore.getState().layoutMode;
+          useAppStore.getState().setLayoutMode(current === "split" ? "single" : "split");
         }
         // ⌘0-⌘9 — Quick access to pinned notes
-        if (
-          mod &&
-          !e.shiftKey &&
-          !e.altKey &&
-          e.key >= "0" &&
-          e.key <= "9"
-        ) {
+        if (mod && !e.shiftKey && !e.altKey && e.key >= "0" && e.key <= "9") {
           const pinnedNotes = useAppStore
             .getState()
             .notes.filter((n) => n.is_pinned);
@@ -472,6 +479,7 @@ function App() {
     loadNotes,
     browseOpen,
     shortcutSettingsOpen,
+    preferencesOpen,
   ]);
 
   if (loading) {
@@ -484,29 +492,9 @@ function App() {
 
   const chromeActive = isPointerInside;
 
-  return (
-    <div
-      className="relative flex h-screen flex-col bg-[#232323]"
-      onMouseEnter={() => setIsPointerInside(true)}
-      onMouseLeave={() => setIsPointerInside(false)}
-    >
-      <Toolbar
-        title={title}
-        chromeActive={chromeActive}
-        onBrowse={openBrowse}
-        onNewNote={() => {
-          createNoteAndFocus(true);
-        }}
-        onActionPanel={() => setActionPanelOpen(true)}
-      />
-      {findBarOpen && editor && (
-        <FindBar
-          editor={editor}
-          onClose={() => setFindBarOpen(false)}
-        />
-      )}
-      <Editor editor={editor} />
-      <FormatBar editor={editor} chromeActive={chromeActive} />
+  // Shared overlays rendered in both layout modes
+  const overlays = (
+    <>
       <NotesBrowser open={browseOpen} onClose={() => setBrowseOpen(false)} />
       <ActionPanel
         open={actionPanelOpen}
@@ -524,7 +512,57 @@ function App() {
         onClose={() => setShortcutSettingsOpen(false)}
         onSave={saveGlobalShortcut}
       />
+      <PreferencesPanel
+        open={preferencesOpen}
+        currentShortcut={globalShortcut}
+        onClose={() => setPreferencesOpen(false)}
+        onSaveShortcut={saveGlobalShortcut}
+      />
       <Toast />
+    </>
+  );
+
+  // Editor pane (shared content for both layout modes)
+  const editorPane = (
+    <>
+      <Toolbar
+        title={title}
+        chromeActive={chromeActive}
+        onBrowse={openBrowse}
+        onNewNote={() => {
+          createNoteAndFocus(true);
+        }}
+        onActionPanel={() => setActionPanelOpen(true)}
+      />
+      {findBarOpen && editor && (
+        <FindBar editor={editor} onClose={() => setFindBarOpen(false)} />
+      )}
+      <Editor editor={editor} />
+      <FormatBar editor={editor} chromeActive={chromeActive} />
+    </>
+  );
+
+  if (layoutMode === "split") {
+    return (
+      <div
+        className="relative h-screen overflow-hidden bg-[#232323]"
+        onMouseEnter={() => setIsPointerInside(true)}
+        onMouseLeave={() => setIsPointerInside(false)}
+      >
+        <SplitLayout>{editorPane}</SplitLayout>
+        {overlays}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="relative flex h-screen flex-col bg-[#232323]"
+      onMouseEnter={() => setIsPointerInside(true)}
+      onMouseLeave={() => setIsPointerInside(false)}
+    >
+      {editorPane}
+      {overlays}
     </div>
   );
 }

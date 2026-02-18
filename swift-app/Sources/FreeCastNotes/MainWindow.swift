@@ -18,7 +18,7 @@ class MainWindow: NSWindow {
 
         // Size constraints (fixed width, variable height)
         minSize = NSSize(width: 650, height: 700)
-        maxSize = NSSize(width: 650, height: NSScreen.main?.frame.height ?? 1200)
+        maxSize = NSSize(width: NSScreen.main?.frame.width ?? 1800, height: NSScreen.main?.frame.height ?? 1200)
 
         // Floating behavior
         level = .floating

@@ -19,8 +19,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         trayManager = TrayManager(window: mainWindow, webViewController: webViewController)
         shortcutManager = ShortcutManager(window: mainWindow)
 
-        // Connect shortcut manager to web view controller for IPC
+        // Connect shortcut manager and tray manager to web view controller for IPC
         webViewController.setShortcutManager(shortcutManager)
+        webViewController.setTrayManager(trayManager)
 
         // Show window on launch
         mainWindow.makeKeyAndOrderFront(nil)
