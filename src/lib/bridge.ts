@@ -101,23 +101,6 @@ export const bridge = {
     return Promise.resolve(false);
   },
 
-  // Batch export: user picks a folder, Swift writes all files into it
-  exportBatch: (
-    files: Array<{ path: string; content: string; encoding?: "utf8" | "base64" }>,
-  ): Promise<{ success: boolean; folder: string }> => {
-    if (isSwiftAvailable()) {
-      return window.swiftBridge!.call("exportBatch", { files }, 120000).then(
-        (result) => {
-          if (result && typeof result === "object") {
-            return result as { success: boolean; folder: string };
-          }
-          return { success: false, folder: "" };
-        },
-      );
-    }
-    return Promise.resolve({ success: false, folder: "" });
-  },
-
   // Open the Preferences window (separate NSWindow)
   openPreferences: (): void => {
     if (isSwiftAvailable()) {
