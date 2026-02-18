@@ -18,7 +18,11 @@ export default function NotesSidebar() {
     const q = search.toLowerCase();
     return visibleNotes.filter((n) => {
       const title = extractTitle(n.content).toLowerCase();
-      return title.includes(q) || n.content.toLowerCase().includes(q);
+      return (
+        title.includes(q) ||
+        n.content.toLowerCase().includes(q) ||
+        (n.tags ?? []).some((t) => t.toLowerCase().includes(q))
+      );
     });
   }, [visibleNotes, search]);
 

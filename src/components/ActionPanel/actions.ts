@@ -105,7 +105,6 @@ export function buildActions(
         await callbacks.onImportFile();
       },
     },
-
     // --- Export ---
     {
       id: "copy-markdown",
@@ -116,7 +115,7 @@ export function buildActions(
       disabled: !editor,
       execute: async () => {
         if (!editor) return;
-        await copyAsMarkdown(editor);
+        await copyAsMarkdown(editor, currentNote?.tags ?? []);
         showToast("Copied as Markdown");
         callbacks.onClose();
       },
@@ -162,7 +161,7 @@ export function buildActions(
           category: "export",
           execute: async () => {
             if (!editor) return;
-            const saved = await exportToFile(editor, "md");
+            const saved = await exportToFile(editor, "md", currentNote?.tags ?? []);
             if (saved) showToast("Exported as Markdown");
             callbacks.onClose();
           },

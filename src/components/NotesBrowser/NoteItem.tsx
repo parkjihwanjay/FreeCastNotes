@@ -46,6 +46,20 @@ export default function NoteItem({
         <p className="text-xs text-[#E5E5E7]/40">
           {time} &middot; {charCount} Characters
         </p>
+        {note.tags && note.tags.length > 0 && (
+          <div className="mt-1 flex flex-wrap gap-1">
+            {note.tags.slice(0, 4).map((tag) => (
+              <span key={tag} className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-[#E5E5E7]/60">
+                {tag}
+              </span>
+            ))}
+            {note.tags.length > 4 && (
+              <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-[#E5E5E7]/40">
+                +{note.tags.length - 4}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Hover actions */}

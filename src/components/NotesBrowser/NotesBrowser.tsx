@@ -6,20 +6,25 @@ import NoteItem from "./NoteItem";
 interface NotesBrowserProps {
   open: boolean;
   onClose: () => void;
+  defaultSearch?: string;
 }
 
-export default function NotesBrowser({ open, onClose }: NotesBrowserProps) {
-  const [search, setSearch] = useState("");
+export default function NotesBrowser({ open, onClose, defaultSearch = "" }: NotesBrowserProps) {
+  const [search, setSearch] = useState(defaultSearch);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const { notes, currentNote, switchToNote, createNote, deleteNote, togglePin } =
     useAppStore();
 
+  // Sync search when defaultSearch changes (e.g. "Filter by Tag")
+  useEffect(() => {
+    setSearch(defaultSearch);
+  }, [defaultSearch]);
+
   // Focus search input when panel opens
   useEffect(() => {
     if (open) {
-      setSearch("");
       setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 50);
     }
   }, [open]);
@@ -35,7 +40,11 @@ export default function NotesBrowser({ open, onClose }: NotesBrowserProps) {
     return visibleNotes.filter((n) => {
       const title = extractTitle(n.content).toLowerCase();
       const content = n.content.toLowerCase();
-      return title.includes(q) || content.includes(q);
+      return (
+        title.includes(q) ||
+        content.includes(q) ||
+        (n.tags ?? []).some((t) => t.toLowerCase().includes(q))
+      );
     });
   }, [visibleNotes, search]);
 

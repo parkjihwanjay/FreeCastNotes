@@ -13,10 +13,13 @@ export async function copyAsHTML(editor: Editor): Promise<void> {
   await navigator.clipboard.writeText(html);
 }
 
-/** Copy Markdown to clipboard */
-export async function copyAsMarkdown(editor: Editor): Promise<void> {
+/** Copy Markdown to clipboard (with optional YAML frontmatter for tags) */
+export async function copyAsMarkdown(
+  editor: Editor,
+  tags: string[] = [],
+): Promise<void> {
   const json = editor.getJSON();
-  const md = jsonToMarkdown(json);
+  const md = withTagFrontmatter(jsonToMarkdown(json), tags);
   await navigator.clipboard.writeText(md);
 }
 
@@ -24,6 +27,7 @@ export async function copyAsMarkdown(editor: Editor): Promise<void> {
 export async function exportToFile(
   editor: Editor,
   format: "md" | "html" | "txt",
+  tags: string[] = [],
 ): Promise<boolean> {
   let content: string;
   let extension: string;
@@ -31,7 +35,7 @@ export async function exportToFile(
 
   switch (format) {
     case "md":
-      content = jsonToMarkdown(editor.getJSON());
+      content = withTagFrontmatter(jsonToMarkdown(editor.getJSON()), tags);
       extension = "md";
       filterName = "Markdown";
       break;
@@ -48,6 +52,13 @@ export async function exportToFile(
   }
 
   return bridge.exportFile(content, extension, filterName);
+}
+
+// --- Helpers ---
+
+function withTagFrontmatter(md: string, tags: string[]): string {
+  if (!tags.length) return md;
+  return `---\ntags: [${tags.join(", ")}]\n---\n\n${md}`;
 }
 
 // --- TipTap JSON to Markdown converter ---

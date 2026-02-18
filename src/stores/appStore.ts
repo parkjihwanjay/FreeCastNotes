@@ -24,6 +24,7 @@ interface AppState {
   deleteNote: (id: string) => Promise<void>;
   togglePin: (id: string) => Promise<void>;
   duplicateNote: (id: string) => Promise<Note | null>;
+  updateNoteTags: (id: string, tags: string[]) => Promise<void>;
 
   // Navigation
   goBack: () => Promise<void>;
@@ -231,6 +232,21 @@ export const useAppStore = create<AppState>((set, get) => ({
       console.error("Failed to duplicate note", error);
       get().showToast("Could not duplicate note");
       return null;
+    }
+  },
+
+  updateNoteTags: async (id: string, tags: string[]) => {
+    try {
+      await db.updateNoteTags(id, tags);
+      const { currentNote } = get();
+      set((state) => ({
+        notes: state.notes.map((n) => (n.id === id ? { ...n, tags } : n)),
+        currentNote:
+          currentNote?.id === id ? { ...currentNote, tags } : currentNote,
+      }));
+    } catch (error) {
+      console.error("Failed to update note tags", error);
+      get().showToast("Could not update tags");
     }
   },
 

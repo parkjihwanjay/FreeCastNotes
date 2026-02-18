@@ -44,6 +44,9 @@ function normalizeNote(value: unknown): Note | null {
       typeof v.last_opened_at === "string" ? v.last_opened_at : undefined,
     is_pinned: Number(v.is_pinned) ? 1 : 0,
     pin_order: Number.isFinite(Number(v.pin_order)) ? Number(v.pin_order) : -1,
+    tags: Array.isArray(v.tags)
+      ? (v.tags as unknown[]).filter((t): t is string => typeof t === "string")
+      : [],
   };
 }
 
@@ -136,6 +139,7 @@ export async function createNote(): Promise<Note> {
     updated_at: timestamp,
     is_pinned: 0,
     pin_order: -1,
+    tags: [],
   };
 
   state.notes.unshift(note);
@@ -239,6 +243,7 @@ export async function duplicateNote(id: string): Promise<Note | null> {
     updated_at: timestamp,
     is_pinned: 0,
     pin_order: -1,
+    tags: [...(original.tags ?? [])],
   };
 
   state.notes.unshift(dup);
@@ -268,6 +273,7 @@ export async function restoreNote(id: string): Promise<Note | null> {
     updated_at: now(),
     is_pinned: 0,
     pin_order: -1,
+    tags: [],
   };
 
   const existingIdx = state.notes.findIndex((n) => n.id === id);
@@ -288,4 +294,15 @@ export async function purgeDeletedNotes(): Promise<void> {
     (n) => new Date(n.deleted_at).getTime() >= cutoff,
   );
   saveState({ ...state, deletedNotes: filtered });
+}
+
+export async function updateNoteTags(
+  id: string,
+  tags: string[],
+): Promise<void> {
+  const state = loadState();
+  const idx = state.notes.findIndex((n) => n.id === id);
+  if (idx < 0) return;
+  state.notes[idx] = { ...state.notes[idx], tags };
+  saveState(state);
 }

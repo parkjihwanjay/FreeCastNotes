@@ -10,6 +10,7 @@ import FindBar from "./components/Editor/FindBar";
 import ShortcutSettings from "./components/ShortcutSettings/ShortcutSettings";
 import PreferencesPanel from "./components/PreferencesPanel/PreferencesPanel";
 import SplitLayout from "./components/SplitLayout/SplitLayout";
+import TagBar from "./components/TagBar/TagBar";
 import { useAppEditor } from "./hooks/useEditor";
 import { useAppStore } from "./stores/appStore";
 import { extractTitle } from "./lib/utils";
@@ -26,6 +27,8 @@ function App() {
   const [globalShortcut, setGlobalShortcut] = useState("Alt+N");
   const [isPointerInside, setIsPointerInside] = useState(false);
   const [title, setTitle] = useState("Untitled");
+  const [browseDefaultSearch, setBrowseDefaultSearch] = useState("");
+  const [tagBarVisible, setTagBarVisible] = useState(false);
   const {
     currentNote,
     loading,
@@ -232,6 +235,19 @@ function App() {
     return () => window.removeEventListener("tray-set-layout", handler);
   }, [setLayoutMode]);
 
+  // Listen for "Filter by Tag" action from ActionPanel
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const tag = (e as CustomEvent<{ tag: string }>).detail?.tag;
+      if (!tag) return;
+      setBrowseDefaultSearch(tag);
+      setBrowseOpen(true);
+      setActionPanelOpen(false);
+    };
+    window.addEventListener("open-notes-with-tag", handler);
+    return () => window.removeEventListener("open-notes-with-tag", handler);
+  }, []);
+
   // Window position persistence
   useEffect(() => {
     const saved = localStorage.getItem("windowPos");
@@ -429,7 +445,8 @@ function App() {
         if (mod && e.shiftKey && !e.altKey && (key === "c" || e.code === "KeyC")) {
           e.preventDefault();
           if (editor) {
-            copyAsMarkdown(editor).then(() => showToast("Copied as Markdown"));
+            const tags = useAppStore.getState().currentNote?.tags ?? [];
+            copyAsMarkdown(editor, tags).then(() => showToast("Copied as Markdown"));
           }
         }
         // ⇧⌘E — Export (open action panel)
@@ -495,7 +512,14 @@ function App() {
   // Shared overlays rendered in both layout modes
   const overlays = (
     <>
-      <NotesBrowser open={browseOpen} onClose={() => setBrowseOpen(false)} />
+      <NotesBrowser
+        open={browseOpen}
+        defaultSearch={browseDefaultSearch}
+        onClose={() => {
+          setBrowseOpen(false);
+          setBrowseDefaultSearch("");
+        }}
+      />
       <ActionPanel
         open={actionPanelOpen}
         onClose={() => setActionPanelOpen(false)}
@@ -533,7 +557,11 @@ function App() {
           createNoteAndFocus(true);
         }}
         onActionPanel={() => setActionPanelOpen(true)}
-      />
+        onToggleTagBar={() => setTagBarVisible((v) => !v)}
+        tagBarVisible={tagBarVisible}
+      >
+        {tagBarVisible && <TagBar />}
+      </Toolbar>
       {findBarOpen && editor && (
         <FindBar editor={editor} onClose={() => setFindBarOpen(false)} />
       )}
