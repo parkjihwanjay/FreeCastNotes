@@ -103,6 +103,9 @@ class PreferencesWindowController: NSObject, WKScriptMessageHandler, WKNavigatio
         case "vaultSetFolder":
             handleVaultSetFolder(callId: callId)
 
+        case "vaultLoadAll":
+            handleVaultLoadAll(callId: callId)
+
         default:
             break
         }
@@ -156,6 +159,50 @@ class PreferencesWindowController: NSObject, WKScriptMessageHandler, WKNavigatio
             }
             UserDefaults.standard.set(newURL.path, forKey: "vaultFolderPath")
             self.respond(callId: callId, type: "vaultSetFolder", result: newURL.path)
+        }
+    }
+
+    private func handleVaultLoadAll(callId: String?) {
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            let fm = FileManager.default
+            let vaultURL = self.vaultFolderURL
+            let deletedURL = vaultURL.appendingPathComponent("_deleted")
+
+            try? fm.createDirectory(at: vaultURL, withIntermediateDirectories: true)
+
+            var notes: [[String: Any]] = []
+            var deleted: [[String: Any]] = []
+            let modKey = URLResourceKey.contentModificationDateKey
+
+            if let items = try? fm.contentsOfDirectory(at: vaultURL,
+                                                        includingPropertiesForKeys: [modKey]) {
+                for item in items where item.pathExtension == "md" {
+                    if let content = try? String(contentsOf: item, encoding: .utf8) {
+                        let mtime = (try? item.resourceValues(forKeys: [modKey]))?
+                            .contentModificationDate?.timeIntervalSince1970 ?? 0
+                        notes.append(["filename": item.lastPathComponent,
+                                      "content": content,
+                                      "mtime": mtime])
+                    }
+                }
+            }
+
+            if let items = try? fm.contentsOfDirectory(at: deletedURL,
+                                                        includingPropertiesForKeys: [modKey]) {
+                for item in items where item.pathExtension == "md" {
+                    if let content = try? String(contentsOf: item, encoding: .utf8) {
+                        let mtime = (try? item.resourceValues(forKeys: [modKey]))?
+                            .contentModificationDate?.timeIntervalSince1970 ?? 0
+                        deleted.append(["filename": item.lastPathComponent,
+                                        "content": content,
+                                        "mtime": mtime])
+                    }
+                }
+            }
+
+            self.respond(callId: callId, type: "vaultLoadAll",
+                         result: ["notes": notes, "deleted": deleted])
         }
     }
 

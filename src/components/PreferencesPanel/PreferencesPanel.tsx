@@ -21,7 +21,7 @@ export default function PreferencesPanel({
   onSaveShortcut,
   standalone = false,
 }: PreferencesPanelProps) {
-  const { layoutMode, setLayoutMode, sortOrder, setSortOrder, notes } = useAppStore();
+  const { layoutMode, setLayoutMode, sortOrder, setSortOrder, notes, loadNotes } = useAppStore();
   const [shortcutValue, setShortcutValue] = useState(currentShortcut);
   const [recording, setRecording] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -36,7 +36,11 @@ export default function PreferencesPanel({
     setSaving(false);
     setError(null);
     bridge.vaultGetFolder().then(setVaultFolder).catch(() => {});
-  }, [open, currentShortcut, standalone]);
+    // In standalone window the store never ran loadNotes(); load from vault so note count is correct
+    if (standalone) {
+      loadNotes().catch(() => {});
+    }
+  }, [open, currentShortcut, standalone, loadNotes]);
 
   useEffect(() => {
     if ((!open && !standalone) || !recording) return;
@@ -74,6 +78,7 @@ export default function PreferencesPanel({
       const newPath = await bridge.vaultSetFolder();
       if (newPath) {
         setVaultFolder(newPath);
+        await loadNotes();
       }
     } finally {
       setMovingVault(false);
