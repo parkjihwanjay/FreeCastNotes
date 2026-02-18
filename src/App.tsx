@@ -377,7 +377,7 @@ function App() {
           return;
         }
 
-        // Esc — Close browse view first, otherwise hide window
+        // Esc — Close browse view first, then action panel, otherwise hide window
         if (key === "escape") {
           e.preventDefault();
           if (browseOpen) {
@@ -385,7 +385,11 @@ function App() {
             editor?.commands.focus();
             return;
           }
-          setActionPanelOpen(false);
+          if (actionPanelOpen) {
+            // ActionPanel's own handler manages Escape (back from submenu, or close).
+            // Don't hide the window here — just let it do its thing.
+            return;
+          }
           setFindBarOpen(false);
           bridge.hideWindow();
           return;
@@ -519,6 +523,7 @@ function App() {
     toggleAutoResize,
     loadNotes,
     browseOpen,
+    actionPanelOpen,
     shortcutSettingsOpen,
     preferencesOpen,
   ]);
