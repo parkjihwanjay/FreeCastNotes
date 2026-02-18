@@ -12,22 +12,30 @@ Raycast Notes is a beautifully designed scratchpad. But it's limited to **5 note
 
 ## Features
 
-- **Instant access** — Global hotkey (`Option+N`) to show/hide from anywhere
+- **Instant access** — Global hotkey (`Option+N`, customizable) to show/hide from anywhere
 - **Always on top** — Stays above other windows while you work
 - **Space-aware** — Always appears on your *current* macOS Space (Spotlight-like)
 - **Rich text editing** — Headings, bold, italic, code blocks, lists, task lists, blockquotes, links, images
-- **Unlimited notes** — No artificial limits, all stored locally
+- **Unlimited notes** — No artificial limits, all stored locally in a vault folder (Markdown files)
 - **Command palette** (`Cmd+K`) — Search and execute any action
 - **Browse notes** (`Cmd+P`) — Quick switcher with fuzzy search
 - **Find & replace** (`Cmd+F`) — Search within notes with match highlighting
 - **Pin notes** — Pin important notes to the top, access with `Cmd+1-9`
 - **Images** — Insert via format bar, paste, or drag & drop; resize with corner handles
 - **Import** — Import Markdown files as new notes
-- **Export** — Copy as Markdown, HTML, or plain text; export to file
-- **System tray** — Menu bar icon with quick actions
-- **Auto-sizing window** — Window grows/shrinks with content
+- **Export** — Copy as Markdown, HTML, or plain text; export current note to file (`Shift+Cmd+E` opens export options)
+- **Preferences** (`Cmd+,`) — Dedicated Preferences window: vault location, layout, sort order, global shortcut, launch at login
+- **Launch at login** — Option in Preferences to start FreeCast Notes when you log in
+- **Split layout** (`Cmd+S`) — Toggle between single editor and sidebar + editor view
+- **System tray** — Menu bar icon with quick actions (Preferences, New Note, View, Quit)
+- **Auto-sizing window** — Window grows/shrinks with content (toggle with `Shift+Cmd+/`)
+- **Format bar** — Toggle visibility with `Option+Cmd+,`
 - **Dark theme** — Native macOS dark appearance
 - **Fully local** — All data stored on your machine, no cloud, no accounts
+
+## Releases
+
+See [CHANGELOG.md](CHANGELOG.md) for version history. **Current: v1.1.0.**
 
 ## Installation
 
@@ -66,6 +74,19 @@ make dmg
 
 The `.app` and `.dmg` will be in the `build/` directory.
 
+### Publishing a release (e.g. v1.1.0)
+
+1. Update version in `package.json` if needed (e.g. `"version": "1.1.0"`).
+2. Update [CHANGELOG.md](CHANGELOG.md) with the release date and any last-minute notes.
+3. Build the DMG: `make dmg`
+4. Commit and tag:
+   ```bash
+   git add -A && git commit -m "Release v1.1.0"
+   git tag -a v1.1.0 -m "Release v1.1.0"
+   git push origin main && git push origin v1.1.0
+   ```
+5. On GitHub: [Releases](https://github.com/gastonmichelotti/FreeCastNotes/releases) → **Draft a new release** → choose tag `v1.1.0`, paste the changelog for that version, attach `build/FreeCastNotes.dmg`, and publish.
+
 ### Makefile commands
 
 | Command | Description |
@@ -87,24 +108,27 @@ The `.app` and `.dmg` will be in the `build/` directory.
 ### General
 | Shortcut | Action |
 |----------|--------|
-| `Option+N` | Show/Hide window (global, customizable) |
+| `Option+N` | Show/Hide window (global, customizable in Preferences) |
+| `Cmd+,` | Open Preferences |
 | `Cmd+K` | Open command palette |
 | `Cmd+P` | Browse notes |
 | `Cmd+F` | Find in note |
 | `Cmd+N` | New note |
 | `Cmd+D` | Duplicate note |
+| `Cmd+S` | Toggle split layout (single / sidebar + editor) |
 | `Shift+Cmd+P` | Toggle pin |
 | `Cmd+[` | Navigate back |
 | `Cmd+]` | Navigate forward |
 | `Cmd+1-9` | Jump to pinned note |
 | `Shift+Cmd+/` | Toggle auto-sizing |
+| `Option+Cmd+,` | Toggle format bar |
 | `Esc` | Hide window |
 
 ### Export
 | Shortcut | Action |
 |----------|--------|
 | `Shift+Cmd+C` | Copy as Markdown |
-| `Shift+Cmd+E` | Export to file |
+| `Shift+Cmd+E` | Open command palette with Export submenu |
 
 ### Formatting
 | Shortcut | Action |

@@ -85,6 +85,23 @@ export const bridge = {
     return Promise.resolve(false);
   },
 
+  // Launch at login
+  getLaunchAtLogin: (): Promise<boolean> => {
+    if (isSwiftAvailable()) {
+      return window.swiftBridge!.call("getLaunchAtLogin") as Promise<boolean>;
+    }
+    return Promise.resolve(false);
+  },
+
+  setLaunchAtLogin: (enabled: boolean): Promise<boolean> => {
+    if (isSwiftAvailable()) {
+      return window.swiftBridge!.call("setLaunchAtLogin", {
+        enabled,
+      }) as Promise<boolean>;
+    }
+    return Promise.resolve(false);
+  },
+
   // File export (native save dialog)
   exportFile: (
     content: string,

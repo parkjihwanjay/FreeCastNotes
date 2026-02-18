@@ -1,4 +1,5 @@
 import AppKit
+import ServiceManagement
 import WebKit
 
 class WebViewController: NSViewController, WKScriptMessageHandler, WKNavigationDelegate {
@@ -170,6 +171,15 @@ class WebViewController: NSViewController, WKScriptMessageHandler, WKNavigationD
                 DispatchQueue.main.async { [weak self] in
                     self?.trayManager?.updateLayoutCheckmark(mode: mode)
                 }
+            }
+
+        case "getLaunchAtLogin":
+            let enabled = SMAppService.mainApp.status == .enabled
+            respond(callId: callId, type: type, result: enabled)
+
+        case "setLaunchAtLogin":
+            if let enabled = payload?["enabled"] as? Bool {
+                handleSetLaunchAtLogin(enabled: enabled, callId: callId)
             }
 
         case "vaultGetFolder":
@@ -358,6 +368,22 @@ class WebViewController: NSViewController, WKScriptMessageHandler, WKNavigationD
         }
         return FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Documents/FreeCastNotes")
+    }
+
+    private func handleSetLaunchAtLogin(enabled: Bool, callId: String?) {
+        DispatchQueue.main.async { [weak self] in
+            do {
+                if enabled {
+                    try SMAppService.mainApp.register()
+                } else {
+                    try SMAppService.mainApp.unregister()
+                }
+                self?.respond(callId: callId, type: "setLaunchAtLogin", result: true)
+            } catch {
+                print("[FreeCastNotes] setLaunchAtLogin failed: \(error)")
+                self?.respond(callId: callId, type: "setLaunchAtLogin", result: false)
+            }
+        }
     }
 
     private func handleVaultGetFolder(callId: String?) {

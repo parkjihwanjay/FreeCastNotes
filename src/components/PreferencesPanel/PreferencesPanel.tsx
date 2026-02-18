@@ -28,6 +28,7 @@ export default function PreferencesPanel({
   const [error, setError] = useState<string | null>(null);
   const [vaultFolder, setVaultFolder] = useState("~/Documents/FreeCastNotes");
   const [movingVault, setMovingVault] = useState(false);
+  const [launchAtLogin, setLaunchAtLogin] = useState(false);
 
   useEffect(() => {
     if (!open && !standalone) return;
@@ -36,6 +37,7 @@ export default function PreferencesPanel({
     setSaving(false);
     setError(null);
     bridge.vaultGetFolder().then(setVaultFolder).catch(() => {});
+    bridge.getLaunchAtLogin().then(setLaunchAtLogin).catch(() => {});
     // In standalone window the store never ran loadNotes(); load from vault so note count is correct
     if (standalone) {
       loadNotes().catch(() => {});
@@ -83,6 +85,12 @@ export default function PreferencesPanel({
     } finally {
       setMovingVault(false);
     }
+  };
+
+  const handleToggleLaunchAtLogin = async () => {
+    const next = !launchAtLogin;
+    const success = await bridge.setLaunchAtLogin(next);
+    if (success) setLaunchAtLogin(next);
   };
 
   if (!open && !standalone) return null;
@@ -153,6 +161,29 @@ export default function PreferencesPanel({
                 className="shrink-0 rounded-md px-2.5 py-1 text-[11px] text-[#E5E5E7]/65 transition-colors hover:bg-white/8 hover:text-[#E5E5E7] disabled:opacity-50"
               >
                 {movingVault ? "Moving…" : "Change Location…"}
+              </button>
+            </div>
+          </div>
+
+          {/* Launch at Login */}
+          <div className="space-y-2 px-4 py-4">
+            <p className="text-[11px] uppercase tracking-wide text-[#E5E5E7]/40">
+              Launch at Login
+            </p>
+            <div className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-black/20 px-3 py-2">
+              <p className="text-xs text-[#E5E5E7]/80">
+                Start FreeCast Notes when you log in
+              </p>
+              <button
+                type="button"
+                onClick={handleToggleLaunchAtLogin}
+                className={`shrink-0 rounded-md px-2.5 py-1.5 text-[11px] font-medium transition-colors ${
+                  launchAtLogin
+                    ? "bg-[#FF5F5A]/22 text-[#E5E5E7]"
+                    : "bg-white/10 text-[#E5E5E7]/70 hover:bg-white/15"
+                }`}
+              >
+                {launchAtLogin ? "On" : "Off"}
               </button>
             </div>
           </div>
