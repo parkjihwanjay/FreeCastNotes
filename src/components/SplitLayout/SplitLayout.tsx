@@ -2,11 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "../../stores/appStore";
 import NotesSidebar from "../NotesSidebar/NotesSidebar";
 
-interface SplitLayoutProps {
-  children: React.ReactNode;
-}
-
-export default function SplitLayout({ children }: SplitLayoutProps) {
+export default function SplitLayout() {
   const { splitPanelWidth, setSplitPanelWidth } = useAppStore();
   const [localWidth, setLocalWidth] = useState(splitPanelWidth);
   const isDragging = useRef(false);
@@ -51,7 +47,7 @@ export default function SplitLayout({ children }: SplitLayoutProps) {
   };
 
   return (
-    <div className="flex h-full min-h-0 overflow-hidden">
+    <>
       {/* Sidebar */}
       <div
         style={{ width: localWidth, minWidth: 200, maxWidth: 500 }}
@@ -65,11 +61,6 @@ export default function SplitLayout({ children }: SplitLayoutProps) {
         onMouseDown={handleDragStart}
         className="w-1 shrink-0 cursor-col-resize bg-white/6 transition-colors hover:bg-white/18 select-none"
       />
-
-      {/* Editor area */}
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        {children}
-      </div>
-    </div>
+    </>
   );
 }

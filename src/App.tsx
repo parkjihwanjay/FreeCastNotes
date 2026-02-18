@@ -301,6 +301,29 @@ function App() {
     }
   }, []);
 
+  // Flush any pending auto-save when the layout changes.
+  // The layout change causes EditorContent to unmount/remount (different tree position),
+  // which re-initializes the TipTap view. We save before that happens so content is safe.
+  useEffect(() => {
+    if (debounceRef.current === null || !currentNoteIdRef.current || !editor) return;
+    clearTimeout(debounceRef.current);
+    debounceRef.current = null;
+    const content = jsonToMarkdown(editor.getJSON());
+    db.updateNote(currentNoteIdRef.current, content).catch(console.error);
+  }, [layoutMode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Flush any pending auto-save when the action panel opens.
+  // Actions in the panel (New Note, Browse Notes) trigger db.listNotes() which
+  // reads disk — if the debounce hasn't fired yet, the image write races with that
+  // read. Flushing immediately before any panel action eliminates that window.
+  useEffect(() => {
+    if (!actionPanelOpen || debounceRef.current === null || !currentNoteIdRef.current || !editor) return;
+    clearTimeout(debounceRef.current);
+    debounceRef.current = null;
+    const content = jsonToMarkdown(editor.getJSON());
+    db.updateNote(currentNoteIdRef.current, content).catch(console.error);
+  }, [actionPanelOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Resize window when layout mode changes (and on first load)
   useEffect(() => {
     const resize = async () => {
@@ -629,22 +652,6 @@ function App() {
     </>
   );
 
-  if (layoutMode === "split") {
-    return (
-      <div
-        className="relative flex h-screen flex-col overflow-hidden bg-[#232323]"
-        onMouseEnter={() => setIsPointerInside(true)}
-        onMouseLeave={() => setIsPointerInside(false)}
-      >
-        {toolbar}
-        <div className="min-h-0 flex-1 overflow-hidden">
-          <SplitLayout>{editorPaneContent}</SplitLayout>
-        </div>
-        {overlays}
-      </div>
-    );
-  }
-
   return (
     <div
       className="relative flex h-screen flex-col bg-[#232323]"
@@ -652,7 +659,12 @@ function App() {
       onMouseLeave={() => setIsPointerInside(false)}
     >
       {toolbar}
-      {editorPaneContent}
+      <div className={`flex min-h-0 flex-1 ${layoutMode === "split" ? "overflow-hidden" : ""}`}>
+        {layoutMode === "split" && <SplitLayout />}
+        <div className={`flex flex-col flex-1 ${layoutMode === "split" ? "min-w-0 overflow-hidden" : ""}`}>
+          {editorPaneContent}
+        </div>
+      </div>
       {overlays}
     </div>
   );

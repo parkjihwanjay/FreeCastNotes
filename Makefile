@@ -5,7 +5,7 @@
 # =============================================================================
 
 .PHONY: help dev dev-front dev-swift build build-debug bundle dmg clean clean-front \
-        clean-swift check open install kill
+        clean-swift check open install kill release-update release-new
 
 C := \033[36m
 G := \033[32m
@@ -40,6 +40,10 @@ help:
 	@echo "  clean-swift   Limpia .build/ de Swift"
 	@echo "  kill          Mata procesos de FreeCastNotes y Vite (:1420)"
 	@echo "  open          Abre FreeCastNotes.app"
+	@echo ""
+	@echo "$(G)Release:$(N)"
+	@echo "  release-update        Actualiza release actual con nuevo DMG (misma versión)"
+	@echo "  release-new VERSION=x.y.z  Crea nuevo release con versión x.y.z"
 	@echo ""
 
 # === DESARROLLO ===
@@ -123,3 +127,44 @@ kill:
 open:
 	@open build/FreeCastNotes.app 2>/dev/null || \
 	 echo "$(R)No se encontró FreeCastNotes.app. Ejecutá 'make bundle' primero.$(N)"
+
+# === RELEASE ===
+
+release-update: dmg
+	@echo "$(G)Actualizando release en GitHub...$(N)"
+	@if [ ! -f build/FreeCastNotes.dmg ]; then \
+		echo "$(R)Error: build/FreeCastNotes.dmg no existe. Ejecutá 'make dmg' primero.$(N)"; \
+		exit 1; \
+	fi
+	@VERSION=$$(grep -A1 "CFBundleShortVersionString" swift-app/Info.plist | tail -1 | sed 's/.*<string>\(.*\)<\/string>/\1/'); \
+	echo "$(C)Versión actual: $$VERSION$(N)"; \
+	echo "$(C)Subiendo DMG al release v$$VERSION...$(N)"; \
+	gh release upload v$$VERSION build/FreeCastNotes.dmg --clobber || \
+		(echo "$(R)Error: No se pudo subir el DMG. Verificá que el release v$$VERSION exista.$(N)" && exit 1); \
+	echo "$(G)✓ Release v$$VERSION actualizado$(N)"
+
+release-new:
+	@if [ -z "$(VERSION)" ]; then \
+		echo "$(R)Error: Especificá la versión con VERSION=x.y.z$(N)"; \
+		echo "$(Y)Ejemplo: make release-new VERSION=1.2.0$(N)"; \
+		exit 1; \
+	fi
+	@echo "$(G)Creando nuevo release v$(VERSION)...$(N)"
+	@echo "$(C)1. Actualizando Info.plist...$(N)"
+	@./src/scripts/update-version.sh $(VERSION)
+	@echo "$(C)2. Construyendo DMG...$(N)"
+	@$(MAKE) dmg
+	@echo "$(C)3. Creando tag v$(VERSION)...$(N)"
+	@git add swift-app/Info.plist
+	@git commit -m "Bump version to $(VERSION)" || true
+	@git tag -f v$(VERSION) 2>/dev/null || git tag v$(VERSION)
+	@echo "$(C)4. Pusheando cambios y tag...$(N)"
+	@git push origin main
+	@git push origin v$(VERSION) 2>/dev/null || git push origin v$(VERSION) --force
+	@echo "$(C)5. Creando release en GitHub...$(N)"
+	@gh release create v$(VERSION) build/FreeCastNotes.dmg \
+		--title "v$(VERSION)" \
+		--notes "Release v$(VERSION)" 2>/dev/null || \
+		(echo "$(Y)El release ya existe, actualizando...$(N)" && \
+		 gh release upload v$(VERSION) build/FreeCastNotes.dmg --clobber)
+	@echo "$(G)✓ Release v$(VERSION) creado y publicado$(N)"

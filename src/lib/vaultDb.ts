@@ -16,6 +16,8 @@ let _filenameMap: Map<string, string> = new Map(); // noteId → "slug-id8.md"
 let _notesMeta: Map<string, Note> = new Map(); // noteId → Note (content = raw md body)
 let _deletedFilenameMap: Map<string, string> = new Map(); // deletedNoteId → filename in _deleted/
 let _deletedMeta: Map<string, DeletedNote> = new Map(); // deletedNoteId → DeletedNote
+// Tracks notes whose vaultWriteNote is in-flight so listNotes() doesn't overwrite the cache
+let _pendingUpdates: Map<string, Note> = new Map();
 
 // --- Internal types ---
 
@@ -253,6 +255,16 @@ export async function listNotes(): Promise<Note[]> {
     }
   }
 
+  // Re-apply any writes that were in-flight when vaultLoadAll ran.
+  // listNotes() reads disk state before those writes commit, so without this
+  // the cache would revert to the old content and updateLastOpened would
+  // subsequently overwrite the file with stale data (no image reference).
+  for (const [pendingId, pendingNote] of _pendingUpdates) {
+    const idx = notes.findIndex((n) => n.id === pendingId);
+    if (idx !== -1) notes[idx] = pendingNote;
+    if (_notesMeta.has(pendingId)) _notesMeta.set(pendingId, pendingNote);
+  }
+
   for (const file of result.deleted) {
     try {
       const { meta } = parseFrontmatter(file.content);
@@ -360,19 +372,26 @@ export async function updateNote(id: string, content: string): Promise<void> {
   }
   
   const updatedNote: Note = { ...note, content: md, updated_at: now() };
-  const fileContent = serializeNote(updatedNote, md);
 
-  const success = await bridge.vaultWriteNote(filename, fileContent, attachments);
-  
-  if (attachments.length > 0) {
-    if (success) {
-      console.log(`[FreeCastNotes] ✓ Successfully saved note with attachments`);
-    } else {
-      console.error(`[FreeCastNotes] ✗ Failed to save note with attachments`);
-    }
-  }
-  
+  // Optimistic cache update before the async write so that concurrent readers
+  // (updateLastOpened, listNotes re-apply) always see the new content.
   _notesMeta.set(id, updatedNote);
+  _pendingUpdates.set(id, updatedNote);
+
+  const fileContent = serializeNote(updatedNote, md);
+  try {
+    const success = await bridge.vaultWriteNote(filename, fileContent, attachments);
+
+    if (attachments.length > 0) {
+      if (success) {
+        console.log(`[FreeCastNotes] ✓ Successfully saved note with attachments`);
+      } else {
+        console.error(`[FreeCastNotes] ✗ Failed to save note with attachments`);
+      }
+    }
+  } finally {
+    _pendingUpdates.delete(id);
+  }
 }
 
 export async function deleteNote(id: string): Promise<void> {
