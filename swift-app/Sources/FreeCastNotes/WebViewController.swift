@@ -144,6 +144,11 @@ class WebViewController: NSViewController, WKScriptMessageHandler, WKNavigationD
                 handleExportFile(content: content, extension: ext, filterName: filterName, callId: callId)
             }
 
+        case "exportBatch":
+            if let files = payload?["files"] as? [[String: Any]] {
+                handleExportBatch(files: files, callId: callId)
+            }
+
         case "startWindowDrag":
             if let event = NSApp.currentEvent {
                 hostWindow?.performDrag(with: event)
@@ -250,6 +255,63 @@ class WebViewController: NSViewController, WKScriptMessageHandler, WKNavigationD
             } else {
                 self?.respond(callId: callId, type: "exportFile", result: false)
             }
+        }
+    }
+
+    // MARK: - Batch Export
+
+    private func handleExportBatch(files: [[String: Any]], callId: String?) {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        panel.prompt = "Export Here"
+        panel.title = "Choose Export Folder"
+
+        hostWindow?.level = .normal
+
+        panel.begin { [weak self] response in
+            self?.hostWindow?.level = .floating
+
+            guard response == .OK, let baseURL = panel.url else {
+                self?.respond(callId: callId, type: "exportBatch",
+                              result: ["success": false, "folder": ""])
+                return
+            }
+
+            // Create a uniquely-named subfolder so nothing is dumped loose
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd HH-mm"
+            let timestamp = formatter.string(from: Date())
+            let folderURL = baseURL.appendingPathComponent("FreeCastNotes Export \(timestamp)")
+
+            let fm = FileManager.default
+            var failedPaths: [String] = []
+
+            for file in files {
+                guard let relativePath = file["path"] as? String,
+                      let content = file["content"] as? String else { continue }
+
+                let fileURL = folderURL.appendingPathComponent(relativePath)
+                let dirURL = fileURL.deletingLastPathComponent()
+
+                do {
+                    try fm.createDirectory(at: dirURL, withIntermediateDirectories: true)
+                    let encoding = file["encoding"] as? String ?? "utf8"
+                    if encoding == "base64",
+                       let data = Data(base64Encoded: content, options: .ignoreUnknownCharacters) {
+                        try data.write(to: fileURL)
+                    } else {
+                        try content.write(to: fileURL, atomically: true, encoding: .utf8)
+                    }
+                } catch {
+                    print("[FreeCastNotes] exportBatch failed for \(relativePath): \(error)")
+                    failedPaths.append(relativePath)
+                }
+            }
+
+            self?.respond(callId: callId, type: "exportBatch",
+                          result: ["success": failedPaths.isEmpty, "folder": folderURL.path])
         }
     }
 

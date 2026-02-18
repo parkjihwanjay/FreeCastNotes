@@ -63,7 +63,7 @@ function withTagFrontmatter(md: string, tags: string[]): string {
 
 // --- TipTap JSON to Markdown converter ---
 
-interface TipTapNode {
+export interface TipTapNode {
   type: string;
   content?: TipTapNode[];
   text?: string;
@@ -71,7 +71,7 @@ interface TipTapNode {
   attrs?: Record<string, unknown>;
 }
 
-function jsonToMarkdown(doc: TipTapNode): string {
+export function jsonToMarkdown(doc: TipTapNode): string {
   if (!doc.content) return "";
   return doc.content.map((node) => nodeToMarkdown(node, 0)).join("\n");
 }
@@ -123,6 +123,12 @@ function nodeToMarkdown(node: TipTapNode, depth: number): string {
 
     case "horizontalRule":
       return "---\n";
+
+    case "image": {
+      const src = (node.attrs?.src as string) || "";
+      const alt = (node.attrs?.alt as string) || "";
+      return `![${alt}](${src})\n`;
+    }
 
     default:
       return inlineContent(node) + "\n";

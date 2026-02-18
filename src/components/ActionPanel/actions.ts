@@ -5,6 +5,7 @@ import {
   copyAsPlainText,
   exportToFile,
 } from "../../lib/export";
+import { exportAllNotes } from "../../lib/exportAll";
 import { useAppStore } from "../../stores/appStore";
 
 export interface Action {
@@ -206,6 +207,19 @@ export function buildActions(
         );
         showToast("Deeplink copied");
         callbacks.onClose();
+      },
+    },
+
+    {
+      id: "export-all",
+      label: "Export All Notes…",
+      icon: "📦",
+      category: "export",
+      disabled: store.notes.length === 0,
+      execute: async () => {
+        callbacks.onClose();
+        const success = await exportAllNotes(store.notes);
+        if (success) showToast("All notes exported");
       },
     },
 
