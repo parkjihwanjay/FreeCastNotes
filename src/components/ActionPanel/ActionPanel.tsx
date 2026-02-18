@@ -9,6 +9,9 @@ interface ActionPanelProps {
   onNewNote: () => void;
   onBrowseNotes: () => void;
   onImportFile: () => void;
+  /** When opening, show this action's submenu immediately (e.g. "export-file" for ⇧⌘E) */
+  openWithSubmenuId?: string | null;
+  onConsumedSubmenuId?: () => void;
 }
 
 export default function ActionPanel({
@@ -18,17 +21,34 @@ export default function ActionPanel({
   onNewNote,
   onBrowseNotes,
   onImportFile,
+  openWithSubmenuId = null,
+  onConsumedSubmenuId,
 }: ActionPanelProps) {
   const [search, setSearch] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [submenu, setSubmenu] = useState<Action[] | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const openedWithSubmenuRef = useRef(false);
 
   const actions = useMemo(
     () => buildActions(editor, { onNewNote, onBrowseNotes, onImportFile, onClose }),
     [editor, onNewNote, onBrowseNotes, onImportFile, onClose],
   );
+
+  // When opening with a specific submenu (e.g. ⇧⌘E → Export), show that submenu immediately
+  useEffect(() => {
+    if (open && openWithSubmenuId && actions.length > 0) {
+      const action = actions.find((a) => a.id === openWithSubmenuId);
+      if (action?.submenu) {
+        openedWithSubmenuRef.current = true;
+        setSubmenu(action.submenu);
+        setSelectedIndex(0);
+        setSearch("");
+      }
+      onConsumedSubmenuId?.();
+    }
+  }, [open, openWithSubmenuId, actions, onConsumedSubmenuId]);
 
   const filtered = useMemo(() => {
     const list = submenu || actions;
@@ -41,12 +61,16 @@ export default function ActionPanel({
     );
   }, [actions, submenu, search]);
 
-  // Reset state when panel opens
+  // Reset state when panel opens (unless we just opened with a submenu via shortcut)
   useEffect(() => {
     if (open) {
-      setSearch("");
-      setSelectedIndex(0);
-      setSubmenu(null);
+      if (!openedWithSubmenuRef.current) {
+        setSearch("");
+        setSelectedIndex(0);
+        setSubmenu(null);
+      } else {
+        openedWithSubmenuRef.current = false;
+      }
       setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 50);
     }
   }, [open]);

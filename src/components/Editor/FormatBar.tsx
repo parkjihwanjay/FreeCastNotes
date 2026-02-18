@@ -21,16 +21,11 @@ export default function FormatBar({
   const [headingOpen, setHeadingOpen] = useState(false);
   const headingMenuRef = useRef<HTMLDivElement | null>(null);
 
-  // Toggle with ⌥⌘,
+  // Toggle only via custom event (App handles ⌥⌘, and dispatches this; Action Panel also dispatches it)
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.altKey && e.metaKey && e.key === ",") {
-        e.preventDefault();
-        setVisible((v) => !v);
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    const onToggle = () => setVisible((v) => !v);
+    window.addEventListener("toggle-format-bar", onToggle);
+    return () => window.removeEventListener("toggle-format-bar", onToggle);
   }, []);
 
   // Force re-render on editor selection/transaction changes

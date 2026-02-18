@@ -326,7 +326,7 @@ export function buildActions(
         store.layoutMode === "split"
           ? "Switch to Single Layout"
           : "Switch to Split Layout",
-      shortcut: "⌘\\",
+      shortcut: "⌘S",
       icon: "⊞",
       category: "window",
       execute: () => {
@@ -359,13 +359,7 @@ export function buildActions(
       icon: "⌨",
       category: "window",
       execute: () => {
-        window.dispatchEvent(
-          new KeyboardEvent("keydown", {
-            key: ",",
-            altKey: true,
-            metaKey: true,
-          }),
-        );
+        window.dispatchEvent(new CustomEvent("toggle-format-bar"));
         callbacks.onClose();
       },
     },

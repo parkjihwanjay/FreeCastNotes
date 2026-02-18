@@ -20,6 +20,7 @@ function App() {
   const editor = useAppEditor();
   const [browseOpen, setBrowseOpen] = useState(false);
   const [actionPanelOpen, setActionPanelOpen] = useState(false);
+  const [actionPanelOpenWithSubmenuId, setActionPanelOpenWithSubmenuId] = useState<string | null>(null);
   const [findBarOpen, setFindBarOpen] = useState(false);
   const [shortcutSettingsOpen, setShortcutSettingsOpen] = useState(false);
   const [globalShortcut, setGlobalShortcut] = useState("Alt+N");
@@ -371,6 +372,12 @@ function App() {
           bridge.openPreferences();
           return;
         }
+        // ⌥⌘, — Toggle Format Bar
+        if (mod && e.altKey && !e.shiftKey && (key === "," || e.code === "Comma")) {
+          e.preventDefault();
+          window.dispatchEvent(new CustomEvent("toggle-format-bar"));
+          return;
+        }
 
         // Esc / ⌘W — Close browse view first, then action panel, otherwise hide window
         if (key === "escape" || (mod && !e.shiftKey && !e.altKey && (key === "w" || e.code === "KeyW"))) {
@@ -472,9 +479,10 @@ function App() {
             copyAsMarkdown(editor, tags).then(() => showToast("Copied as Markdown"));
           }
         }
-        // ⇧⌘E — Export (open action panel)
+        // ⇧⌘E — Export (open action panel with Export submenu)
         if (mod && e.shiftKey && !e.altKey && (key === "e" || e.code === "KeyE")) {
           e.preventDefault();
+          setActionPanelOpenWithSubmenuId("export-file");
           setActionPanelOpen(true);
         }
         // ⇧⌘/ — Toggle auto-resize
@@ -484,8 +492,8 @@ function App() {
           toggleAutoResize();
           showToast(wasEnabled ? "Auto-sizing disabled" : "Auto-sizing enabled");
         }
-        // ⌘\ — Toggle Split Layout
-        if (mod && !e.shiftKey && !e.altKey && e.code === "Backslash") {
+        // ⌘S — Toggle Split Layout
+        if (mod && !e.shiftKey && !e.altKey && (key === "s" || e.code === "KeyS")) {
           e.preventDefault();
           const current = useAppStore.getState().layoutMode;
           useAppStore.getState().setLayoutMode(current === "split" ? "single" : "split");
@@ -545,7 +553,12 @@ function App() {
       />
       <ActionPanel
         open={actionPanelOpen}
-        onClose={() => setActionPanelOpen(false)}
+        onClose={() => {
+          setActionPanelOpen(false);
+          setActionPanelOpenWithSubmenuId(null);
+        }}
+        openWithSubmenuId={actionPanelOpenWithSubmenuId}
+        onConsumedSubmenuId={() => setActionPanelOpenWithSubmenuId(null)}
         editor={editor}
         onNewNote={() => {
           createNoteAndFocus(true);
