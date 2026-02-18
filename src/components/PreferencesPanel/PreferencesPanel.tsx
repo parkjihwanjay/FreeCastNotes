@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import type { SortOrder } from "../../types";
 import { useAppStore } from "../../stores/appStore";
 
 interface PreferencesPanelProps {
@@ -16,7 +17,7 @@ export default function PreferencesPanel({
   onClose,
   onSaveShortcut,
 }: PreferencesPanelProps) {
-  const { layoutMode, setLayoutMode } = useAppStore();
+  const { layoutMode, setLayoutMode, sortOrder, setSortOrder } = useAppStore();
   const [shortcutValue, setShortcutValue] = useState(currentShortcut);
   const [recording, setRecording] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -127,6 +128,44 @@ export default function PreferencesPanel({
                   List + Editor
                 </span>
               </button>
+            </div>
+          </div>
+
+          {/* Sort section */}
+          <div className="space-y-2 px-4 py-4">
+            <p className="text-[11px] uppercase tracking-wide text-[#E5E5E7]/40">
+              Sort Notes By
+            </p>
+            <div className="flex flex-col gap-1">
+              {(
+                [
+                  { value: "modified", label: "Last Modified", desc: "Most recently edited first" },
+                  { value: "opened",   label: "Last Opened",   desc: "Most recently viewed first" },
+                  { value: "title",    label: "Title",         desc: "Alphabetical A → Z" },
+                ] as { value: SortOrder; label: string; desc: string }[]
+              ).map(({ value, label, desc }) => (
+                <button
+                  key={value}
+                  onClick={() => setSortOrder(value)}
+                  className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors ${
+                    sortOrder === value
+                      ? "border-[#FF5F5A]/60 bg-[#FF5F5A]/12 text-[#E5E5E7]"
+                      : "border-white/10 bg-white/5 text-[#E5E5E7]/70 hover:bg-white/8"
+                  }`}
+                >
+                  <span
+                    className={`mt-0.5 h-3.5 w-3.5 shrink-0 rounded-full border-2 ${
+                      sortOrder === value
+                        ? "border-[#FF5F5A] bg-[#FF5F5A]"
+                        : "border-white/30"
+                    }`}
+                  />
+                  <span>
+                    <span className="block text-xs font-medium">{label}</span>
+                    <span className="block text-[11px] text-[#E5E5E7]/40">{desc}</span>
+                  </span>
+                </button>
+              ))}
             </div>
           </div>
 

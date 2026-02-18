@@ -79,11 +79,11 @@ build-debug:
 
 bundle: build
 	@echo "$(G)Creando FreeCastNotes.app...$(N)"
-	@./scripts/bundle-app.sh release
+	@./src/scripts/bundle-app.sh release
 
 dmg: bundle
 	@echo "$(G)Creando FreeCastNotes.dmg...$(N)"
-	@./scripts/create-dmg.sh
+	@./src/scripts/create-dmg.sh
 
 # === VERIFICACIÓN ===
 

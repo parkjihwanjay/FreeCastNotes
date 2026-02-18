@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Note } from "../types";
+import type { Note, SortOrder } from "../types";
 import * as db from "../lib/db";
 
 interface AppState {
@@ -40,6 +40,10 @@ interface AppState {
   splitPanelWidth: number;
   setLayoutMode: (mode: "single" | "split") => void;
   setSplitPanelWidth: (width: number) => void;
+
+  // Sort
+  sortOrder: SortOrder;
+  setSortOrder: (order: SortOrder) => void;
 }
 
 const _PREFS_KEY = "freecastnotes.prefs.v1";
@@ -59,6 +63,14 @@ function _savePrefs(updates: Record<string, unknown>) {
   }
 }
 
+const VALID_SORT_ORDERS: SortOrder[] = ["modified", "opened", "title"];
+function initSortOrder(): SortOrder {
+  const saved = _initPrefs.sortOrder as string;
+  return VALID_SORT_ORDERS.includes(saved as SortOrder)
+    ? (saved as SortOrder)
+    : "modified";
+}
+
 export const useAppStore = create<AppState>((set, get) => ({
   notes: [],
   currentNote: null,
@@ -75,7 +87,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   loadNotes: async () => {
     try {
-      const notes = await db.listNotes();
+      const rawNotes = await db.listNotes();
+      const notes = db.sortNotes(rawNotes, get().sortOrder);
       set({ notes, loading: false });
     } catch (error) {
       console.error("Failed to load notes", error);
@@ -87,8 +100,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   createNote: async () => {
     try {
       const note = await db.createNote();
-      const notes = await db.listNotes();
-      const { history, historyIndex } = get();
+      const rawNotes = await db.listNotes();
+      const { history, historyIndex, sortOrder } = get();
+      const notes = db.sortNotes(rawNotes, sortOrder);
       const newHistory = [...history.slice(0, historyIndex + 1), note.id];
       set({
         notes,
@@ -109,14 +123,23 @@ export const useAppStore = create<AppState>((set, get) => ({
       const note = await db.getNote(id);
       if (!note) return;
 
-      const { history, historyIndex, currentNote } = get();
-      // Don't push to history if we're navigating to the same note
+      // Track last opened (for "Last Opened" sort)
+      db.updateLastOpened(id);
+
+      const { history, historyIndex, currentNote, sortOrder, notes } = get();
+      const openedAt = new Date().toISOString();
+      const updatedNotes = db.sortNotes(
+        notes.map((n) => (n.id === id ? { ...n, last_opened_at: openedAt } : n)),
+        sortOrder,
+      );
+
       if (currentNote?.id === id) {
-        set({ currentNote: note });
+        set({ currentNote: note, notes: updatedNotes });
       } else {
         const newHistory = [...history.slice(0, historyIndex + 1), id];
         set({
           currentNote: note,
+          notes: updatedNotes,
           history: newHistory,
           historyIndex: newHistory.length - 1,
         });
@@ -127,7 +150,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   updateCurrentNoteContent: async (content: string) => {
-    const { currentNote } = get();
+    const { currentNote, sortOrder } = get();
     if (!currentNote) return;
 
     try {
@@ -139,8 +162,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       };
       set((state) => ({
         currentNote: updatedNote,
-        notes: state.notes.map((n) =>
-          n.id === updatedNote.id ? updatedNote : n,
+        notes: db.sortNotes(
+          state.notes.map((n) => (n.id === updatedNote.id ? updatedNote : n)),
+          sortOrder,
         ),
       }));
     } catch (error) {
@@ -151,14 +175,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   deleteNote: async (id: string) => {
     try {
       await db.deleteNote(id);
-      const notes = await db.listNotes();
-      const { currentNote } = get();
+      const rawNotes = await db.listNotes();
+      const { currentNote, sortOrder } = get();
+      const notes = db.sortNotes(rawNotes, sortOrder);
       if (currentNote?.id === id) {
         if (notes.length > 0) {
           set({ notes, currentNote: notes[0] });
         } else {
           const newNote = await db.createNote();
-          const refreshed = await db.listNotes();
+          const refreshed = db.sortNotes(await db.listNotes(), sortOrder);
           set({ notes: refreshed, currentNote: newNote });
         }
       } else {
@@ -174,8 +199,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       const updated = await db.togglePin(id);
       if (!updated) return;
-      const notes = await db.listNotes();
-      const { currentNote } = get();
+      const rawNotes = await db.listNotes();
+      const { currentNote, sortOrder } = get();
+      const notes = db.sortNotes(rawNotes, sortOrder);
       set({
         notes,
         currentNote: currentNote?.id === id ? updated : currentNote,
@@ -190,8 +216,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       const dup = await db.duplicateNote(id);
       if (!dup) return null;
-      const notes = await db.listNotes();
-      const { history, historyIndex } = get();
+      const rawNotes = await db.listNotes();
+      const { history, historyIndex, sortOrder } = get();
+      const notes = db.sortNotes(rawNotes, sortOrder);
       const newHistory = [...history.slice(0, historyIndex + 1), dup.id];
       set({
         notes,
@@ -263,5 +290,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   setSplitPanelWidth: (width) => {
     set({ splitPanelWidth: width });
     _savePrefs({ splitPanelWidth: width });
+  },
+
+  // Sort
+  sortOrder: initSortOrder(),
+  setSortOrder: (order) => {
+    const { notes } = get();
+    set({ sortOrder: order, notes: db.sortNotes(notes, order) });
+    _savePrefs({ sortOrder: order });
   },
 }));

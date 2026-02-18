@@ -7,7 +7,7 @@
 
 set -euo pipefail
 
-PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 APP_BUNDLE="$PROJECT_ROOT/build/FreeCastNotes.app"
 OUTPUT_DIR="$PROJECT_ROOT/build"
 DMG_NAME="FreeCastNotes"

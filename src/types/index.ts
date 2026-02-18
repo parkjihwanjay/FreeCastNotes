@@ -3,9 +3,12 @@ export interface Note {
   content: string;
   created_at: string;
   updated_at: string;
+  last_opened_at?: string;
   is_pinned: number; // 0 or 1 (SQLite boolean)
   pin_order: number;
 }
+
+export type SortOrder = "modified" | "opened" | "title";
 
 export interface DeletedNote {
   id: string;

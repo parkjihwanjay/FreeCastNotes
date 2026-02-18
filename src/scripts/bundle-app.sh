@@ -9,7 +9,7 @@
 set -euo pipefail
 
 CONFIG="${1:-release}"
-PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SWIFT_APP="$PROJECT_ROOT/swift-app"
 RESOURCES="$SWIFT_APP/Resources"
 BUILD_DIR="$SWIFT_APP/.build/$CONFIG"

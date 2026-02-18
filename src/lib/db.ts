@@ -1,4 +1,5 @@
-import type { Note, DeletedNote } from "../types";
+import type { Note, DeletedNote, SortOrder } from "../types";
+import { extractTitle } from "./utils";
 
 interface LocalDbState {
   notes: Note[];
@@ -39,6 +40,8 @@ function normalizeNote(value: unknown): Note | null {
     content: typeof v.content === "string" ? v.content : "",
     created_at: toIsoOrNow(v.created_at),
     updated_at: toIsoOrNow(v.updated_at),
+    last_opened_at:
+      typeof v.last_opened_at === "string" ? v.last_opened_at : undefined,
     is_pinned: Number(v.is_pinned) ? 1 : 0,
     pin_order: Number.isFinite(Number(v.pin_order)) ? Number(v.pin_order) : -1,
   };
@@ -56,17 +59,34 @@ function normalizeDeletedNote(value: unknown): DeletedNote | null {
   };
 }
 
-function sortNotes(notes: Note[]): Note[] {
+export function sortNotes(notes: Note[], sortOrder: SortOrder = "modified"): Note[] {
   return [...notes].sort((a, b) => {
+    // Pinned notes always first
     if (a.is_pinned !== b.is_pinned) return b.is_pinned - a.is_pinned;
+    // Both pinned → preserve pin_order
     if (a.is_pinned && b.is_pinned && a.pin_order !== b.pin_order) {
       return a.pin_order - b.pin_order;
     }
-    return (
-      new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-    );
+    // Unpinned (or same pin tier) → sort by user preference
+    if (sortOrder === "title") {
+      return extractTitle(a.content).localeCompare(
+        extractTitle(b.content),
+        undefined,
+        { sensitivity: "base" },
+      );
+    }
+    if (sortOrder === "opened") {
+      const aDate = a.last_opened_at ?? a.updated_at;
+      const bDate = b.last_opened_at ?? b.updated_at;
+      return new Date(bDate).getTime() - new Date(aDate).getTime();
+    }
+    // "modified" (default)
+    return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
   });
 }
+
+// Internal alias — storage always uses "modified" order
+const sortForStorage = (notes: Note[]) => sortNotes(notes, "modified");
 
 function loadState(): LocalDbState {
   const empty: LocalDbState = { notes: [], deletedNotes: [] };
@@ -91,7 +111,7 @@ function loadState(): LocalDbState {
       : [];
 
     return {
-      notes: sortNotes(notes),
+      notes: sortForStorage(notes),
       deletedNotes: deletedNotes.sort(
         (a, b) =>
           new Date(b.deleted_at).getTime() - new Date(a.deleted_at).getTime(),
@@ -119,7 +139,7 @@ export async function createNote(): Promise<Note> {
   };
 
   state.notes.unshift(note);
-  saveState({ ...state, notes: sortNotes(state.notes) });
+  saveState({ ...state, notes: sortForStorage(state.notes) });
   return note;
 }
 
@@ -139,7 +159,7 @@ export async function updateNote(id: string, content: string): Promise<void> {
     updated_at: now(),
   };
 
-  saveState({ ...state, notes: sortNotes(state.notes) });
+  saveState({ ...state, notes: sortForStorage(state.notes) });
 }
 
 export async function deleteNote(id: string): Promise<void> {
@@ -157,13 +177,13 @@ export async function deleteNote(id: string): Promise<void> {
   });
 
   saveState({
-    notes: sortNotes(state.notes),
+    notes: sortForStorage(state.notes),
     deletedNotes: state.deletedNotes,
   });
 }
 
 export async function listNotes(): Promise<Note[]> {
-  return sortNotes(loadState().notes);
+  return loadState().notes; // Already sorted by modified (sortForStorage in loadState)
 }
 
 export async function searchNotes(query: string): Promise<Note[]> {
@@ -171,7 +191,15 @@ export async function searchNotes(query: string): Promise<Note[]> {
   if (!q) return listNotes();
 
   const notes = loadState().notes;
-  return sortNotes(notes.filter((n) => n.content.toLowerCase().includes(q)));
+  return notes.filter((n) => n.content.toLowerCase().includes(q));
+}
+
+export function updateLastOpened(id: string): void {
+  const state = loadState();
+  const idx = state.notes.findIndex((n) => n.id === id);
+  if (idx < 0) return;
+  state.notes[idx] = { ...state.notes[idx], last_opened_at: now() };
+  saveState({ ...state, notes: sortForStorage(state.notes) });
 }
 
 export async function togglePin(id: string): Promise<Note | null> {
@@ -194,7 +222,7 @@ export async function togglePin(id: string): Promise<Note | null> {
   };
 
   state.notes[idx] = updated;
-  saveState({ ...state, notes: sortNotes(state.notes) });
+  saveState({ ...state, notes: sortForStorage(state.notes) });
   return updated;
 }
 
@@ -214,7 +242,7 @@ export async function duplicateNote(id: string): Promise<Note | null> {
   };
 
   state.notes.unshift(dup);
-  saveState({ ...state, notes: sortNotes(state.notes) });
+  saveState({ ...state, notes: sortForStorage(state.notes) });
   return dup;
 }
 
@@ -249,7 +277,7 @@ export async function restoreNote(id: string): Promise<Note | null> {
     state.notes.unshift(note);
   }
 
-  saveState({ ...state, notes: sortNotes(state.notes) });
+  saveState({ ...state, notes: sortForStorage(state.notes) });
   return note;
 }
 
