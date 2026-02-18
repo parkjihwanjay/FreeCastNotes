@@ -5,10 +5,27 @@ import Underline from "@tiptap/extension-underline";
 import Link from "@tiptap/extension-link";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
+import type { EditorView } from "@tiptap/pm/view";
 import { KeyboardShortcuts } from "../components/Editor/extensions/KeyboardShortcuts";
 import { SearchAndReplace } from "../components/Editor/extensions/SearchAndReplace";
 import { ResizableImage } from "../components/Editor/extensions/ResizableImage";
 import { compressImage, validateImageFile } from "../lib/imageUtils";
+
+/**
+ * Insert a validated image file at the current selection.
+ * Shared by the paste and drop handlers so both paths behave identically.
+ */
+function insertImageFromFile(view: EditorView, file: File): void {
+  compressImage(file)
+    .then((src) => {
+      const { state } = view;
+      const node = state.schema.nodes.image.create({ src });
+      view.dispatch(state.tr.replaceSelectionWith(node));
+    })
+    .catch((err) => {
+      console.error("[FreeCastNotes] Failed to compress image:", err);
+    });
+}
 
 export function useAppEditor() {
   const editor = useTipTapEditor({
@@ -49,51 +66,82 @@ export function useAppEditor() {
       attributes: {
         class: "editor-content",
       },
-      handlePaste: (_view, event) => {
-        const items = event.clipboardData?.items;
-        if (!items) return false;
-        for (const item of items) {
-          if (item.type.startsWith("image/")) {
-            event.preventDefault();
-            const file = item.getAsFile();
-            if (!file) return true;
+
+      handlePaste: (view, event) => {
+        const clipboardData = event.clipboardData;
+        if (!clipboardData) return false;
+
+        // 1. Check DataTransferItems — catches screenshot paste (image/png,
+        //    image/tiff) and image files copied from Finder.
+        const items = Array.from(clipboardData.items);
+        const imageItem = items.find((item) =>
+          item.type.startsWith("image/"),
+        );
+        if (imageItem) {
+          event.preventDefault();
+          const file = imageItem.getAsFile();
+          if (file) {
             const error = validateImageFile(file);
             if (error) {
-              console.warn("Image paste rejected:", error);
-              return true;
+              console.warn("[FreeCastNotes] Image paste rejected:", error);
+            } else {
+              insertImageFromFile(view, file);
             }
-            compressImage(file).then((src) => {
-              _view.dispatch(
-                _view.state.tr.replaceSelectionWith(
-                  _view.state.schema.nodes.image.create({ src }),
-                ),
-              );
-            });
-            return true;
           }
-        }
-        return false;
-      },
-      handleDrop: (_view, event) => {
-        const files = event.dataTransfer?.files;
-        if (!files || files.length === 0) return false;
-        const file = files[0];
-        if (!file.type.startsWith("image/")) return false;
-        event.preventDefault();
-        const error = validateImageFile(file);
-        if (error) {
-          console.warn("Image drop rejected:", error);
           return true;
         }
-        const coords = _view.posAtCoords({
+
+        // 2. Fallback: clipboardData.files — some OS/WKWebView combinations
+        //    surface image files here instead of (or in addition to) items.
+        const imageFile = Array.from(clipboardData.files).find((f) =>
+          f.type.startsWith("image/"),
+        );
+        if (imageFile) {
+          event.preventDefault();
+          const error = validateImageFile(imageFile);
+          if (error) {
+            console.warn("[FreeCastNotes] Image paste rejected:", error);
+          } else {
+            insertImageFromFile(view, imageFile);
+          }
+          return true;
+        }
+
+        return false;
+      },
+
+      handleDrop: (view, event) => {
+        const files = event.dataTransfer?.files;
+        if (!files || files.length === 0) return false;
+
+        // Find the first image in the drop — user may drop mixed files.
+        const imageFile = Array.from(files).find((f) =>
+          f.type.startsWith("image/"),
+        );
+        if (!imageFile) return false;
+
+        event.preventDefault();
+        const error = validateImageFile(imageFile);
+        if (error) {
+          console.warn("[FreeCastNotes] Image drop rejected:", error);
+          return true;
+        }
+
+        // Insert at the drop position rather than the current selection.
+        const coords = view.posAtCoords({
           left: event.clientX,
           top: event.clientY,
         });
-        compressImage(file).then((src) => {
-          const node = _view.state.schema.nodes.image.create({ src });
-          const pos = coords?.pos ?? _view.state.selection.to;
-          _view.dispatch(_view.state.tr.insert(pos, node));
-        });
+        compressImage(imageFile)
+          .then((src) => {
+            const node = view.state.schema.nodes.image.create({ src });
+            const pos = coords?.pos ?? view.state.selection.to;
+            view.dispatch(view.state.tr.insert(pos, node));
+          })
+          .catch((err) => {
+            console.error("[FreeCastNotes] Failed to compress dropped image:", err);
+          });
+
         return true;
       },
     },
