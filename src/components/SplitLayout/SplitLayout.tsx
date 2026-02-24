@@ -50,6 +50,7 @@ export default function SplitLayout() {
     <>
       {/* Sidebar */}
       <div
+        data-resize-panel="sidebar"
         style={{ width: localWidth, minWidth: 200, maxWidth: 500 }}
         className="shrink-0"
       >

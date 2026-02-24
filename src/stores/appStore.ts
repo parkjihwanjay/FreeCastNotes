@@ -1,5 +1,9 @@
 import { create } from "zustand";
-import type { Note, SortOrder } from "../types/index";
+import type {
+  Note,
+  PanelResizeShortcuts,
+  SortOrder,
+} from "../types/index";
 import * as db from "../lib/db";
 import { runMigrationIfNeeded } from "../lib/migration";
 
@@ -43,8 +47,10 @@ interface AppState {
   // Layout
   layoutMode: "single" | "split";
   splitPanelWidth: number;
+  panelResizeShortcuts: PanelResizeShortcuts;
   setLayoutMode: (mode: "single" | "split") => void;
   setSplitPanelWidth: (width: number) => void;
+  setPanelResizeShortcuts: (shortcuts: PanelResizeShortcuts) => void;
 
   // Sort
   sortOrder: SortOrder;
@@ -69,11 +75,44 @@ function _savePrefs(updates: Record<string, unknown>) {
 }
 
 const VALID_SORT_ORDERS: SortOrder[] = ["modified", "opened", "title"];
+const DEFAULT_PANEL_RESIZE_SHORTCUTS: PanelResizeShortcuts = {
+  left: "Alt+CmdOrCtrl+ArrowLeft",
+  right: "Alt+CmdOrCtrl+ArrowRight",
+  up: "Alt+CmdOrCtrl+ArrowUp",
+  down: "Alt+CmdOrCtrl+ArrowDown",
+};
+
 function initSortOrder(): SortOrder {
   const saved = _initPrefs.sortOrder as string;
   return VALID_SORT_ORDERS.includes(saved as SortOrder)
     ? (saved as SortOrder)
     : "modified";
+}
+
+function initPanelResizeShortcuts(): PanelResizeShortcuts {
+  const saved = _initPrefs.panelResizeShortcuts;
+  if (!saved || typeof saved !== "object" || Array.isArray(saved)) {
+    return DEFAULT_PANEL_RESIZE_SHORTCUTS;
+  }
+  const record = saved as Record<string, unknown>;
+  return {
+    left:
+      typeof record.left === "string"
+        ? record.left
+        : DEFAULT_PANEL_RESIZE_SHORTCUTS.left,
+    right:
+      typeof record.right === "string"
+        ? record.right
+        : DEFAULT_PANEL_RESIZE_SHORTCUTS.right,
+    up:
+      typeof record.up === "string"
+        ? record.up
+        : DEFAULT_PANEL_RESIZE_SHORTCUTS.up,
+    down:
+      typeof record.down === "string"
+        ? record.down
+        : DEFAULT_PANEL_RESIZE_SHORTCUTS.down,
+  };
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -323,6 +362,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     typeof _initPrefs.splitPanelWidth === "number"
       ? _initPrefs.splitPanelWidth
       : 300,
+  panelResizeShortcuts: initPanelResizeShortcuts(),
   setLayoutMode: (mode) => {
     set({ layoutMode: mode });
     _savePrefs({ layoutMode: mode });
@@ -330,6 +370,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   setSplitPanelWidth: (width) => {
     set({ splitPanelWidth: width });
     _savePrefs({ splitPanelWidth: width });
+  },
+  setPanelResizeShortcuts: (shortcuts) => {
+    set({ panelResizeShortcuts: shortcuts });
+    _savePrefs({ panelResizeShortcuts: shortcuts });
   },
 
   // Sort

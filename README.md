@@ -24,9 +24,10 @@ Raycast Notes is a beautifully designed scratchpad. But it's limited to **5 note
 - **Images** — Insert via format bar, paste, or drag & drop; resize with corner handles
 - **Import** — Import Markdown files as new notes
 - **Export** — Copy as Markdown, HTML, or plain text; export current note to file (`Shift+Cmd+E` opens export options)
-- **Preferences** (`Cmd+,`) — Dedicated Preferences window: vault location, layout, sort order, global shortcut, launch at login
+- **Preferences** (`Cmd+,`) — Dedicated Preferences window: vault location, layout, sort order, global shortcut, panel resize shortcuts, launch at login
 - **Launch at login** — Option in Preferences to start FreeCast Notes when you log in
 - **Split layout** (`Cmd+S`) — Toggle between single editor and sidebar + editor view
+- **Keyboard panel resizing** — Resize focused panel/window with configurable shortcuts (defaults: `Option+Cmd+Arrow keys`)
 - **System tray** — Menu bar icon with quick actions (Preferences, New Note, View, Quit)
 - **Auto-sizing window** — Window grows/shrinks with content (toggle with `Shift+Cmd+/`)
 - **Format bar** — Toggle visibility with `Option+Cmd+,`
@@ -122,6 +123,8 @@ The `.app` and `.dmg` will be in the `build/` directory.
 | `Cmd+1-9` | Jump to pinned note |
 | `Shift+Cmd+/` | Toggle auto-sizing |
 | `Option+Cmd+,` | Toggle format bar |
+| `Option+Cmd+← / →` | Resize focused panel horizontally |
+| `Option+Cmd+↑ / ↓` | Resize panel/window vertically |
 | `Esc` | Hide window |
 
 ### Export

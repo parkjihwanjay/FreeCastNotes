@@ -16,6 +16,17 @@ import { extractTitle } from "./lib/utils";
 import { copyAsMarkdown, jsonToMarkdown } from "./lib/export";
 import { markdownToHtml } from "./lib/import";
 import * as db from "./lib/db";
+import type {
+  PanelResizeDirection,
+  PanelResizeShortcuts,
+} from "./types/index";
+
+const SPLIT_PANEL_WIDTH_MIN = 200;
+const SPLIT_PANEL_WIDTH_MAX = 500;
+const PANEL_RESIZE_STEP = 24;
+const WINDOW_RESIZE_STEP = 40;
+const WINDOW_MIN_HEIGHT = 400;
+const WINDOW_MIN_WIDTH = 300;
 
 function App() {
   const editor = useAppEditor();
@@ -44,6 +55,9 @@ function App() {
     autoResizeEnabled,
     toggleAutoResize,
     layoutMode,
+    splitPanelWidth,
+    setSplitPanelWidth,
+    panelResizeShortcuts,
     setLayoutMode,
     reloadChangedNotes,
   } = useAppStore();
@@ -55,6 +69,37 @@ function App() {
   const isLoadingNoteRef = useRef(false);
   // Tracks the previous note id so we can flush its pending save before switching
   const prevNoteIdForFlush = useRef<string | null>(null);
+
+  const resizeWindowBy = useCallback(
+    async (
+      widthDelta: number,
+      heightDelta: number,
+      anchorX: "left" | "right" = "left",
+    ) => {
+      const current = await bridge.getWindowSize();
+      const maxWidth = Math.max(
+        WINDOW_MIN_WIDTH,
+        Math.floor(window.screen.availWidth * 0.95),
+      );
+      const maxHeight = Math.max(
+        WINDOW_MIN_HEIGHT,
+        Math.floor(window.screen.availHeight * 0.95),
+      );
+
+      const nextWidth = Math.max(
+        WINDOW_MIN_WIDTH,
+        Math.min(current.width + widthDelta, maxWidth),
+      );
+      const nextHeight = Math.max(
+        WINDOW_MIN_HEIGHT,
+        Math.min(current.height + heightDelta, maxHeight),
+      );
+      if (nextWidth === current.width && nextHeight === current.height) return;
+
+      await bridge.setWindowSize(nextWidth, nextHeight, anchorX);
+    },
+    [],
+  );
 
   // Track current note ID without re-triggering editor effects
   useEffect(() => {
@@ -415,6 +460,57 @@ function App() {
           return;
         }
 
+        if (!browseOpen && !actionPanelOpen) {
+          const panelResizeDirection = getPanelResizeDirection(
+            e,
+            panelResizeShortcuts,
+          );
+          if (panelResizeDirection) {
+            e.preventDefault();
+
+            if (
+              panelResizeDirection === "left" ||
+              panelResizeDirection === "right"
+            ) {
+              const widthDelta =
+                panelResizeDirection === "left"
+                  ? WINDOW_RESIZE_STEP
+                  : -WINDOW_RESIZE_STEP;
+
+              if (layoutMode === "split") {
+                const focusedPanel = getFocusedResizablePanel(e.target);
+                const stepDirection =
+                  panelResizeDirection === "left" ? 1 : -1;
+                const panelDirection = focusedPanel === "sidebar" ? 1 : -1;
+                const nextWidth = Math.min(
+                  SPLIT_PANEL_WIDTH_MAX,
+                  Math.max(
+                    SPLIT_PANEL_WIDTH_MIN,
+                    splitPanelWidth +
+                      PANEL_RESIZE_STEP * stepDirection * panelDirection,
+                  ),
+                );
+                if (nextWidth !== splitPanelWidth) {
+                  setSplitPanelWidth(nextWidth);
+                }
+              } else {
+                void resizeWindowBy(widthDelta, 0, "right").catch(() => {});
+              }
+            } else {
+              if (autoResizeEnabled) {
+                toggleAutoResize();
+                showToast("Auto-sizing disabled");
+              }
+              const heightDelta =
+                panelResizeDirection === "down"
+                  ? WINDOW_RESIZE_STEP
+                  : -WINDOW_RESIZE_STEP;
+              void resizeWindowBy(0, heightDelta).catch(() => {});
+            }
+            return;
+          }
+        }
+
         // ⌘, — Open Preferences (separate window)
         if (mod && !e.shiftKey && !e.altKey && (key === "," || e.code === "Comma")) {
           e.preventDefault();
@@ -555,11 +651,19 @@ function App() {
     window.addEventListener("keydown", handler, true);
     return () => window.removeEventListener("keydown", handler, true);
   }, [
+    actionPanelOpen,
+    autoResizeEnabled,
+    browseOpen,
     createNoteAndFocus,
     editor,
     goBack,
     goForward,
+    layoutMode,
     togglePin,
+    splitPanelWidth,
+    panelResizeShortcuts,
+    setSplitPanelWidth,
+    resizeWindowBy,
     showToast,
     switchToNote,
     toggleAutoResize,
@@ -649,13 +753,94 @@ function App() {
       {toolbar}
       <div className={`flex min-h-0 flex-1 ${layoutMode === "split" ? "overflow-hidden" : ""}`}>
         {layoutMode === "split" && <SplitLayout />}
-        <div className={`flex flex-col flex-1 ${layoutMode === "split" ? "min-w-0 overflow-hidden" : ""}`}>
+        <div
+          data-resize-panel="editor"
+          className={`flex flex-col flex-1 ${layoutMode === "split" ? "min-w-0 overflow-hidden" : ""}`}
+        >
           {editorPaneContent}
         </div>
       </div>
       {overlays}
     </div>
   );
+}
+
+function getPanelResizeDirection(
+  event: KeyboardEvent,
+  shortcuts: PanelResizeShortcuts,
+): PanelResizeDirection | null {
+  if (matchesShortcut(event, shortcuts.left)) return "left";
+  if (matchesShortcut(event, shortcuts.right)) return "right";
+  if (matchesShortcut(event, shortcuts.up)) return "up";
+  if (matchesShortcut(event, shortcuts.down)) return "down";
+  return null;
+}
+
+function matchesShortcut(event: KeyboardEvent, shortcut: string): boolean {
+  const tokens = shortcut
+    .split("+")
+    .map((token) => token.trim())
+    .filter(Boolean);
+  if (tokens.length === 0) return false;
+
+  let requiresCmdOrCtrl = false;
+  let requiresShift = false;
+  let requiresAlt = false;
+  let keyToken: string | null = null;
+
+  for (const token of tokens) {
+    const upper = token.toUpperCase();
+    if (
+      upper === "CMDORCTRL" ||
+      upper === "CMD" ||
+      upper === "COMMAND" ||
+      upper === "CTRL"
+    ) {
+      requiresCmdOrCtrl = true;
+      continue;
+    }
+    if (upper === "SHIFT") {
+      requiresShift = true;
+      continue;
+    }
+    if (upper === "ALT" || upper === "OPTION") {
+      requiresAlt = true;
+      continue;
+    }
+    keyToken = token;
+  }
+
+  if ((event.metaKey || event.ctrlKey) !== requiresCmdOrCtrl) return false;
+  if (event.shiftKey !== requiresShift) return false;
+  if (event.altKey !== requiresAlt) return false;
+  if (!keyToken) return false;
+
+  const normalizedToken = keyToken.toUpperCase();
+  const eventCode = (event.code || "").toUpperCase();
+  if (eventCode === normalizedToken) return true;
+
+  const eventKey = (event.key || "").toUpperCase();
+  if (normalizedToken.startsWith("KEY") && normalizedToken.length === 4) {
+    return eventKey === normalizedToken.slice(3);
+  }
+  if (normalizedToken.startsWith("DIGIT") && normalizedToken.length === 6) {
+    return eventKey === normalizedToken.slice(5);
+  }
+  if (normalizedToken === "SPACE") {
+    return event.code === "Space" || event.key === " ";
+  }
+  return eventKey === normalizedToken;
+}
+
+function getFocusedResizablePanel(target: EventTarget | null): "sidebar" | "editor" {
+  const source = target instanceof Element ? target : document.activeElement;
+  if (
+    source instanceof Element &&
+    source.closest('[data-resize-panel="sidebar"]')
+  ) {
+    return "sidebar";
+  }
+  return "editor";
 }
 
 export default App;

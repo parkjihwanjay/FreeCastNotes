@@ -122,7 +122,17 @@ class WebViewController: NSViewController, WKScriptMessageHandler, WKNavigationD
 
         case "setWindowSize":
             if let w = payload?["width"] as? CGFloat, let h = payload?["height"] as? CGFloat {
-                hostWindow?.setContentSize(NSSize(width: w, height: h))
+                let anchorX = (payload?["anchorX"] as? String) ?? "left"
+                if let window = hostWindow {
+                    let oldFrame = window.frame
+                    let rightEdge = oldFrame.maxX
+                    window.setContentSize(NSSize(width: w, height: h))
+                    if anchorX == "right" {
+                        let newFrame = window.frame
+                        let newX = rightEdge - newFrame.width
+                        window.setFrameOrigin(NSPoint(x: newX, y: newFrame.origin.y))
+                    }
+                }
                 respond(callId: callId, type: type, result: true)
             }
 

@@ -38,11 +38,16 @@ export const bridge = {
     return Promise.resolve({ width: 650, height: 600 });
   },
 
-  setWindowSize: (width: number, height: number): Promise<void> => {
+  setWindowSize: (
+    width: number,
+    height: number,
+    anchorX?: "left" | "right",
+  ): Promise<void> => {
     if (isSwiftAvailable()) {
       return window.swiftBridge!.call("setWindowSize", {
         width,
         height,
+        anchorX,
       }) as Promise<void>;
     }
     return Promise.resolve();

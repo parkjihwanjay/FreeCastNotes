@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import type { SortOrder } from "../../types/index";
+import type {
+  PanelResizeDirection,
+  PanelResizeShortcuts,
+  SortOrder,
+} from "../../types/index";
 import { useAppStore } from "../../stores/appStore";
 import { bridge } from "../../lib/bridge";
 
@@ -13,6 +17,15 @@ interface PreferencesPanelProps {
 }
 
 const MODIFIER_KEYS = new Set(["Shift", "Control", "Alt", "Meta"]);
+const PANEL_SHORTCUT_ITEMS: Array<{
+  direction: PanelResizeDirection;
+  label: string;
+}> = [
+  { direction: "left", label: "Make Focused Panel Narrower" },
+  { direction: "right", label: "Make Focused Panel Wider" },
+  { direction: "up", label: "Shrink Height" },
+  { direction: "down", label: "Expand Height" },
+];
 
 export default function PreferencesPanel({
   open,
@@ -21,9 +34,22 @@ export default function PreferencesPanel({
   onSaveShortcut,
   standalone = false,
 }: PreferencesPanelProps) {
-  const { layoutMode, setLayoutMode, sortOrder, setSortOrder, notes, loadNotes } = useAppStore();
+  const {
+    layoutMode,
+    setLayoutMode,
+    sortOrder,
+    setSortOrder,
+    notes,
+    loadNotes,
+    panelResizeShortcuts,
+    setPanelResizeShortcuts,
+  } = useAppStore();
   const [shortcutValue, setShortcutValue] = useState(currentShortcut);
+  const [panelShortcutValues, setPanelShortcutValues] =
+    useState<PanelResizeShortcuts>(panelResizeShortcuts);
   const [recording, setRecording] = useState(false);
+  const [panelRecordingTarget, setPanelRecordingTarget] =
+    useState<PanelResizeDirection | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [vaultFolder, setVaultFolder] = useState("~/Documents/FreeCastNotes");
@@ -33,7 +59,9 @@ export default function PreferencesPanel({
   useEffect(() => {
     if (!open && !standalone) return;
     setShortcutValue(currentShortcut);
+    setPanelShortcutValues(panelResizeShortcuts);
     setRecording(false);
+    setPanelRecordingTarget(null);
     setSaving(false);
     setError(null);
     bridge.vaultGetFolder().then(setVaultFolder).catch(() => {});
@@ -42,15 +70,18 @@ export default function PreferencesPanel({
     if (standalone) {
       loadNotes().catch(() => {});
     }
-  }, [open, currentShortcut, standalone, loadNotes]);
+  }, [open, currentShortcut, standalone, loadNotes, panelResizeShortcuts]);
 
   useEffect(() => {
-    if ((!open && !standalone) || !recording) return;
+    if ((!open && !standalone) || (!recording && panelRecordingTarget === null)) {
+      return;
+    }
 
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
         setRecording(false);
+        setPanelRecordingTarget(null);
         return;
       }
       if (MODIFIER_KEYS.has(e.key)) {
@@ -60,18 +91,36 @@ export default function PreferencesPanel({
       const captured = toShortcutString(e);
       if (!captured) return;
       e.preventDefault();
-      setShortcutValue(captured);
-      setRecording(false);
+      if (panelRecordingTarget) {
+        setPanelShortcutValues((prev) => ({
+          ...prev,
+          [panelRecordingTarget]: captured,
+        }));
+        setPanelRecordingTarget(null);
+      } else {
+        setShortcutValue(captured);
+        setRecording(false);
+      }
       setError(null);
     };
 
     window.addEventListener("keydown", handler, true);
     return () => window.removeEventListener("keydown", handler, true);
-  }, [open, standalone, recording]);
+  }, [open, standalone, recording, panelRecordingTarget]);
 
   const prettyShortcut = useMemo(
     () => formatShortcut(shortcutValue),
     [shortcutValue],
+  );
+
+  const prettyPanelShortcuts = useMemo(
+    () => ({
+      left: formatShortcut(panelShortcutValues.left),
+      right: formatShortcut(panelShortcutValues.right),
+      up: formatShortcut(panelShortcutValues.up),
+      down: formatShortcut(panelShortcutValues.down),
+    }),
+    [panelShortcutValues],
   );
 
   const handleChangeVaultFolder = async () => {
@@ -116,10 +165,20 @@ export default function PreferencesPanel({
       setError("Use at least one modifier key (Cmd/Ctrl, Shift or Alt).");
       return;
     }
+    const panelShortcutWithoutModifier = PANEL_SHORTCUT_ITEMS.find(
+      ({ direction }) => !hasModifier(panelShortcutValues[direction]),
+    );
+    if (panelShortcutWithoutModifier) {
+      setError(
+        `${panelShortcutWithoutModifier.label} must include at least one modifier key.`,
+      );
+      return;
+    }
     try {
       setSaving(true);
       setError(null);
       await onSaveShortcut(shortcutValue);
+      setPanelResizeShortcuts(panelShortcutValues);
     } catch (e) {
       setError(
         e instanceof Error ? e.message : "Could not update global shortcut",
@@ -275,7 +334,10 @@ export default function PreferencesPanel({
               </p>
             </div>
             <button
-              onClick={() => setRecording((v) => !v)}
+              onClick={() => {
+                setPanelRecordingTarget(null);
+                setRecording((v) => !v);
+              }}
               className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
                 recording
                   ? "border-[#FF5F5A] bg-[#FF5F5A]/12 text-[#E5E5E7]"
@@ -294,6 +356,51 @@ export default function PreferencesPanel({
                 {prettyShortcut}
               </p>
             </div>
+          </div>
+
+          {/* Panel Resize Shortcuts */}
+          <div className="space-y-3 px-4 py-4">
+            <div>
+              <p className="text-[11px] uppercase tracking-wide text-[#E5E5E7]/40">
+                Panel Resize Shortcuts
+              </p>
+              <p className="mt-1 text-xs text-[#E5E5E7]/45">
+                Resizes the focused panel. Horizontal resize applies to split
+                layout; vertical resize adjusts window height.
+              </p>
+            </div>
+            <div className="space-y-2">
+              {PANEL_SHORTCUT_ITEMS.map(({ direction, label }) => (
+                <div
+                  key={direction}
+                  className="rounded-lg border border-white/10 bg-black/20 px-3 py-2.5"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs text-[#E5E5E7]/80">{label}</p>
+                    <button
+                      onClick={() => {
+                        setRecording(false);
+                        setPanelRecordingTarget((current) =>
+                          current === direction ? null : direction,
+                        );
+                      }}
+                      className={`shrink-0 rounded-md border px-2 py-1 text-[11px] transition-colors ${
+                        panelRecordingTarget === direction
+                          ? "border-[#FF5F5A] bg-[#FF5F5A]/12 text-[#E5E5E7]"
+                          : "border-white/10 bg-white/5 text-[#E5E5E7]/75 hover:bg-white/8"
+                      }`}
+                    >
+                      {panelRecordingTarget === direction
+                        ? "Recording..."
+                        : "Record"}
+                    </button>
+                  </div>
+                  <p className="mt-1 font-mono text-sm text-[#E5E5E7]">
+                    {prettyPanelShortcuts[direction]}
+                  </p>
+                </div>
+              ))}
+            </div>
             {error && <p className="text-xs text-red-300">{error}</p>}
           </div>
         </div>
@@ -311,7 +418,7 @@ export default function PreferencesPanel({
             disabled={saving}
             className="rounded-md bg-[#FF5F5A]/22 px-3 py-1.5 text-xs text-[#E5E5E7] transition-colors hover:bg-[#FF5F5A]/32 disabled:opacity-50"
           >
-            {saving ? "Saving..." : "Save Shortcut"}
+            {saving ? "Saving..." : "Save Changes"}
           </button>
         </div>
       </div>

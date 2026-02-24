@@ -11,6 +11,15 @@ export interface Note {
 
 export type SortOrder = "modified" | "opened" | "title";
 
+export type PanelResizeDirection = "left" | "right" | "up" | "down";
+
+export interface PanelResizeShortcuts {
+  left: string;
+  right: string;
+  up: string;
+  down: string;
+}
+
 export interface DeletedNote {
   id: string;
   content: string;
