@@ -428,19 +428,9 @@ function App() {
           return;
         }
 
-        // Esc / ⌘W — Close browse view first, then action panel, otherwise hide window
-        if (key === "escape" || (mod && !e.shiftKey && !e.altKey && (key === "w" || e.code === "KeyW"))) {
+        // ⌘W — Hide window
+        if (mod && !e.shiftKey && !e.altKey && (key === "w" || e.code === "KeyW")) {
           e.preventDefault();
-          if (browseOpen) {
-            setBrowseOpen(false);
-            editor?.commands.focus();
-            return;
-          }
-          if (actionPanelOpen) {
-            // ActionPanel's own handler manages Escape (back from submenu, or close).
-            // Don't hide the window here — just let it do its thing.
-            return;
-          }
           setFindBarOpen(false);
           bridge.hideWindow();
           return;
@@ -574,8 +564,6 @@ function App() {
     switchToNote,
     toggleAutoResize,
     loadNotes,
-    browseOpen,
-    actionPanelOpen,
     shortcutSettingsOpen,
   ]);
 

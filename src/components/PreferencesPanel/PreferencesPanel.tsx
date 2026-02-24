@@ -95,11 +95,14 @@ export default function PreferencesPanel({
 
   if (!open && !standalone) return null;
 
-  // Standalone: Escape closes the Preferences window
+  // Standalone: only Cmd/Ctrl+W closes the Preferences window.
+  // Escape is intentionally ignored to prevent accidental form dismissal.
   useEffect(() => {
     if (!standalone) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      const key = (e.key ?? "").toLowerCase();
+      const mod = e.metaKey || e.ctrlKey;
+      if (mod && !e.shiftKey && !e.altKey && (key === "w" || e.code === "KeyW")) {
         e.preventDefault();
         onClose();
       }
