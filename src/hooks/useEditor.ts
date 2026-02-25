@@ -9,6 +9,7 @@ import type { EditorView } from "@tiptap/pm/view";
 import { KeyboardShortcuts } from "../components/Editor/extensions/KeyboardShortcuts";
 import { SearchAndReplace } from "../components/Editor/extensions/SearchAndReplace";
 import { ResizableImage } from "../components/Editor/extensions/ResizableImage";
+import { TaskListInputRule } from "../components/Editor/extensions/TaskListInputRule";
 import { compressImage, validateImageFile } from "../lib/imageUtils";
 
 /**
@@ -50,6 +51,7 @@ export function useAppEditor() {
       TaskList.configure({
         HTMLAttributes: { class: "task-list" },
       }),
+      TaskListInputRule,
       TaskItem.configure({
         nested: true,
         HTMLAttributes: { class: "task-item" },
