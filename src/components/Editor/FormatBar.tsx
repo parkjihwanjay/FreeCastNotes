@@ -89,11 +89,11 @@ export default function FormatBar({
   return (
     <div
       data-format-bar
-      className={`relative flex h-12 shrink-0 items-center border-t border-white/7 bg-[#232323] px-2 transition-opacity duration-180 ${
+      className={`relative flex h-12 shrink-0 items-center border-t border-white/7 bg-[#232323] transition-opacity duration-180 ${
         chromeActive ? "opacity-100" : "opacity-38"
       }`}
     >
-      <div className="mx-auto flex items-center gap-0.5">
+      <div className="scrollbar-hide flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto pl-2">
         {/* Heading dropdown */}
         <div ref={headingMenuRef} className="relative">
           <FormatBtn
@@ -266,8 +266,7 @@ export default function FormatBar({
         />
       </div>
 
-      {/* Close button */}
-      <div className="absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center gap-1">
+      <div className="flex shrink-0 items-center gap-1 pr-1.5">
         <div className="h-7 w-px bg-white/12" />
         <FormatBtn
           icon={<CloseIcon />}

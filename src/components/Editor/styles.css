@@ -17,6 +17,8 @@
 .tiptap {
   user-select: text;
   -webkit-user-select: text;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 /* Placeholder */
@@ -215,6 +217,8 @@
   text-decoration: underline;
   text-underline-offset: 2px;
   cursor: pointer;
+  overflow-wrap: anywhere;
+  word-break: break-all;
 }
 
 /* ── Strikethrough ── */

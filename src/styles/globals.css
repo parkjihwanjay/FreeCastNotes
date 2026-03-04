@@ -137,3 +137,13 @@ button:focus-visible {
   background: rgba(255, 200, 50, 0.6);
   border-radius: 2px;
 }
+
+/* ── Hide scrollbar utility ── */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}

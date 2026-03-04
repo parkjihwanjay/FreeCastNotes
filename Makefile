@@ -5,7 +5,7 @@
 # =============================================================================
 
 .PHONY: help dev dev-front dev-swift build build-debug bundle dmg clean clean-front \
-        clean-swift check open install kill release-update release-new
+        clean-swift check open install kill update release-update release-new
 
 C := \033[36m
 G := \033[32m
@@ -28,6 +28,7 @@ help:
 	@echo "  build         Build de producción (frontend + Swift release)"
 	@echo "  build-debug   Build de debug Swift (más rápido)"
 	@echo "  bundle        Genera FreeCastNotes.app en build/"
+	@echo "  update        Build + instala en /Applications y relanza la app"
 	@echo "  dmg           Genera FreeCastNotes.dmg para distribución"
 	@echo ""
 	@echo "$(G)Verificación:$(N)"
@@ -84,6 +85,17 @@ build-debug:
 bundle: build
 	@echo "$(G)Creando FreeCastNotes.app...$(N)"
 	@./src/scripts/bundle-app.sh release
+
+update: bundle
+	@echo "$(Y)Cerrando FreeCastNotes si está corriendo...$(N)"
+	@-killall FreeCastNotes 2>/dev/null; sleep 2
+	@echo "$(Y)Eliminando app anterior de /Applications...$(N)"
+	@rm -rf /Applications/FreeCastNotes.app
+	@echo "$(G)Instalando en /Applications...$(N)"
+	@mv build/FreeCastNotes.app /Applications/FreeCastNotes.app
+	@echo "$(G)Relanzando FreeCastNotes...$(N)"
+	@open /Applications/FreeCastNotes.app
+	@echo "$(G)✓ Actualización completada$(N)"
 
 dmg: bundle
 	@echo "$(G)Creando FreeCastNotes.dmg...$(N)"

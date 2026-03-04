@@ -57,11 +57,11 @@ export default function Toolbar({
         {/* Title + Tags as one centered unit (full window) */}
         <div
           data-drag-region
-          className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2"
+          className="absolute left-1/2 top-1/2 flex max-w-[60%] -translate-x-1/2 -translate-y-1/2 items-center gap-2 overflow-hidden"
         >
           <span
             data-drag-region
-            className="pointer-events-none text-sm font-semibold tracking-[0.01em] text-[#E5E5E7]/58"
+            className="pointer-events-none min-w-0 truncate text-sm font-semibold tracking-[0.01em] text-[#E5E5E7]/58"
           >
             {title}
           </span>
