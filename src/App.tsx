@@ -27,6 +27,22 @@ const PANEL_RESIZE_STEP = 24;
 const WINDOW_RESIZE_STEP = 40;
 const WINDOW_MIN_HEIGHT = 400;
 const WINDOW_MIN_WIDTH = 300;
+const WINDOW_MAX_WIDTH_RATIO = 1;
+const WINDOW_MAX_HEIGHT_RATIO = 1;
+const WINDOW_LAYOUT_MIN_HEIGHT = 700;
+
+function getWindowMaxBounds() {
+  return {
+    width: Math.max(
+      WINDOW_MIN_WIDTH,
+      Math.floor(window.screen.availWidth * WINDOW_MAX_WIDTH_RATIO),
+    ),
+    height: Math.max(
+      WINDOW_LAYOUT_MIN_HEIGHT,
+      Math.floor(window.screen.availHeight * WINDOW_MAX_HEIGHT_RATIO),
+    ),
+  };
+}
 
 function App() {
   const editor = useAppEditor();
@@ -77,14 +93,9 @@ function App() {
       anchorX: "left" | "right" = "left",
     ) => {
       const current = await bridge.getWindowSize();
-      const maxWidth = Math.max(
-        WINDOW_MIN_WIDTH,
-        Math.floor(window.screen.availWidth * 0.95),
-      );
-      const maxHeight = Math.max(
-        WINDOW_MIN_HEIGHT,
-        Math.floor(window.screen.availHeight * 0.95),
-      );
+      const maxBounds = getWindowMaxBounds();
+      const maxWidth = maxBounds.width;
+      const maxHeight = maxBounds.height;
 
       const nextWidth = Math.max(
         WINDOW_MIN_WIDTH,
@@ -375,8 +386,11 @@ function App() {
       try {
         const targetWidth = layoutMode === "split" ? 1000 : 650;
         const currentSize = await bridge.getWindowSize();
-        const maxH = Math.max(700, Math.floor(window.screen.availHeight * 0.8));
-        const nextHeight = Math.max(700, Math.min(currentSize.height, maxH));
+        const maxH = getWindowMaxBounds().height;
+        const nextHeight = Math.max(
+          WINDOW_LAYOUT_MIN_HEIGHT,
+          Math.min(currentSize.height, maxH),
+        );
         if (
           currentSize.width !== targetWidth ||
           currentSize.height !== nextHeight
@@ -410,8 +424,11 @@ function App() {
         ? findBarEl.getBoundingClientRect().height
         : 0;
       const total = 48 + contentH + 24 + formatH + findBarH;
-      const maxH = window.screen.availHeight * 0.8;
-      const clamped = Math.max(700, Math.min(Math.ceil(total), maxH));
+      const maxH = getWindowMaxBounds().height;
+      const clamped = Math.max(
+        WINDOW_LAYOUT_MIN_HEIGHT,
+        Math.min(Math.ceil(total), maxH),
+      );
       try {
         const targetWidth = layoutMode === "split" ? 1000 : 650;
         await bridge.setWindowSize(targetWidth, clamped);
@@ -751,11 +768,11 @@ function App() {
       onMouseLeave={() => setIsPointerInside(false)}
     >
       {toolbar}
-      <div className={`flex min-h-0 flex-1 ${layoutMode === "split" ? "overflow-hidden" : ""}`}>
+      <div className="flex min-h-0 flex-1 overflow-hidden">
         {layoutMode === "split" && <SplitLayout />}
         <div
           data-resize-panel="editor"
-          className={`flex flex-col flex-1 ${layoutMode === "split" ? "min-w-0 overflow-hidden" : ""}`}
+          className="flex min-w-0 flex-1 flex-col overflow-hidden"
         >
           {editorPaneContent}
         </div>

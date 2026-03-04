@@ -21,7 +21,7 @@ export default function Editor({ editor }: EditorProps) {
 
   return (
     <div
-      className="flex-1 cursor-text overflow-y-auto px-4 py-3"
+      className="min-w-0 flex-1 cursor-text overflow-x-hidden overflow-y-auto px-4 py-3"
       onClick={handleClick}
     >
       <EditorContent editor={editor} />
